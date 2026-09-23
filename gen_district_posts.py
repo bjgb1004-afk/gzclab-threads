@@ -56,7 +56,8 @@ def main(sido, dry):
     done = {"서울 노원구"}
     picked = {
         k: v for k, v in districts.items()
-        if k.startswith(sido) and len(v) >= 3 and k not in done
+        # 1위조차 1등 2회 미만이면 훅이 안 나옴("1위가 1회, 2위가 1회") — 거른다.
+        if k.startswith(sido) and len(v) >= 3 and v[0]["first"] >= 2 and k not in done
     }
     # 1등 배출이 많은 구부터. 얘기거리가 많은 쪽을 먼저 쓴다.
     order = sorted(picked, key=lambda k: -sum(s["first"] for s in picked[k]))
