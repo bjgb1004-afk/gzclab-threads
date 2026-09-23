@@ -1,0 +1,6 @@
+.env
+__pycache__/
+
+# lottorich에서 받아온 원본 집계. 발행에는 queue.json만 쓰이므로 커밋하지 않는다.
+# 남의 사이트 데이터를 공개 저장소에 그대로 재배포하지 않기 위한 것.
+districts.json

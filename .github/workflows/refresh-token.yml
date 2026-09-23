@@ -1,0 +1,30 @@
+name: Refresh Threads token
+
+on:
+  schedule:
+    - cron: "0 1 1 * *" # 매월 1일 KST 10시 — 60일 만료 전 갱신
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      # 토큰 값은 GitHub 밖으로 나가지 않는다. 갱신 결과는 시크릿에 바로 덮어쓰고,
+      # 텔레그램으로는 성공/실패 사실만 알린다.
+      - name: Refresh and store
+        env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -o pipefail
+          if curl -sf "https://graph.threads.net/v1.0/refresh_access_token?grant_type=th_refresh_token&access_token=$THREADS_TOKEN" \
+              | python -c "import json,sys; print(json.load(sys.stdin)['access_token'])" \
+              | gh secret set THREADS_TOKEN --repo "$GITHUB_REPOSITORY"; then
+            MSG="🔑 Threads 토큰 갱신 완료 (60일 연장). 할 일 없음."
+          else
+            MSG="❌ Threads 토큰 갱신 실패. 만료되면 자동발행이 멈춥니다. 수동 재발급 필요."
+          fi
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode "text=$MSG" > /dev/null

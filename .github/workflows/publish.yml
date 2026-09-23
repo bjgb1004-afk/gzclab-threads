@@ -1,0 +1,36 @@
+name: Publish to Threads
+
+on:
+  schedule:
+    # KST 07:07 / 12:07 / 19:07 (UTC 22:07 전날 / 03:07 / 10:07), 정각 혼잡 회피
+    - cron: "7 22,3,10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: threads-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish next queued post
+        env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python publish.py
+
+      - name: Commit queue state
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add queue.json
+          git diff --cached --quiet || git commit -m "chore: mark published"
+          git push
