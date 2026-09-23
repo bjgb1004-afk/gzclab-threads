@@ -1,10 +1,11 @@
 [
   {
     "id": "top5-기흥구",
-    "status": "pending",
+    "status": "published",
     "slot": "am",
     "text": "기흥구에서 로또 1등 제일 많이 나온 판매점 TOP5\n\n1. 로또휴게실 (하갈동) — 1등 27회\n2. 대성기획 (마북동) — 1등 8회\n3. 열두보석복권방 (구갈동) — 1등 7회\n4. 행운방 (보정동) — 1등 5회\n5. 황금 복권방 (상하동) — 1등 3회\n\n1위가 27회인데 2위가 8회. 3배 차이 남. 이 동네는 사실상 한 집 독주.",
-    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap"
+    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap",
+    "post_id": "18369688255245950"
   },
   {
     "id": "top5-시흥시",
