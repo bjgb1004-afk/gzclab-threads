@@ -11,6 +11,8 @@ import pathlib
 import sys
 import urllib.request
 
+from publish import telegram
+
 API = "https://graph.threads.net/v1.0"
 METRICS = "views,likes,replies,reposts,quotes"
 QUEUE = pathlib.Path(__file__).with_name("queue.json")
@@ -40,7 +42,8 @@ def main():
             p["insights"] = fetch(p["post_id"], TOKEN)
             changed = True
         except Exception as e:
-            print(f"insights failed for {p['id']}: {e}", file=sys.stderr)
+            detail = e.read().decode()[:300] if hasattr(e, "read") else str(e)
+            telegram(f"⚠️ insights 수집 실패\n{p['id']}\n{detail}")
 
     if changed:
         QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

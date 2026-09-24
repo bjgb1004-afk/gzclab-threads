@@ -42,4 +42,16 @@ recent = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="second
 calls, _ = run_once([{"id": "a", "status": "published", "post_id": "m1", "published_at": recent}])
 assert calls == [], calls
 
+# fetch fails -> alerted via telegram, not silently swallowed, insights left unset
+tmp = pathlib.Path(tempfile.mkdtemp()) / "queue.json"
+tmp.write_text(json.dumps([{"id": "a", "status": "published", "post_id": "m1", "published_at": OLD}]), encoding="utf-8")
+ci.QUEUE = tmp
+alerts = []
+ci.telegram = lambda text: alerts.append(text)
+ci.fetch = lambda media_id, token: (_ for _ in ()).throw(RuntimeError("boom"))
+ci.main()
+queue = json.loads(tmp.read_text(encoding="utf-8"))
+assert "insights" not in queue[0], queue
+assert alerts and "insights 수집 실패" in alerts[0], alerts
+
 print("ok")
