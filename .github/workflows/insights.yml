@@ -1,0 +1,33 @@
+name: Collect Threads Insights
+
+on:
+  schedule:
+    - cron: "30 15 * * *"  # KST 00:30 — 그날 발행분 트래픽 다 지난 뒤
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: threads-insights
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect insights for published posts
+        env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+        run: python collect_insights.py
+
+      - name: Commit insights
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add queue.json
+          git diff --cached --quiet || git commit -m "chore: record insights"
+          git push

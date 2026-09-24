@@ -8,8 +8,13 @@ import json
 import pathlib
 import sys
 
+sys.stdout.reconfigure(encoding="utf-8")  # 윈도우 콘솔(cp949)에서 '—' 출력 시 죽는 것 방지
+
 HERE = pathlib.Path(__file__).parent
-APP = "https://play.google.com/store/apps/details?id=com.gzc.lottomap"
+# referrer 값은 Play Console 유입 리포트에 그대로 잡힌다. 이게 없으면 어느 글이
+# 설치로 이어졌는지 영영 알 수 없다.
+APP = ("https://play.google.com/store/apps/details?id=com.gzc.lottomap"
+       "&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dtop5")
 LIMIT = 500  # Threads 본문 글자 제한
 
 
@@ -21,33 +26,59 @@ def where(store):
     return ""
 
 
+def name(store):
+    """원본 데이터에 괄호가 열린 채 잘린 상호가 83곳 있다('훼미리마트(대림중앙점').
+    그대로 올리면 글이 지저분해 보이니 괄호 앞까지만 쓴다."""
+    n = store["name"]
+    return n[: n.rindex("(")].strip() if n.count("(") > n.count(")") else n
+
+
 def hook(top):
+    """1·2위 격차를 사실대로 말한다. 구간을 안 나누면 16회 대 7회까지 '촘촘함'으로 나가서
+    본문 숫자와 마지막 줄이 서로 어긋난다."""
     first, second = top[0]["first"], top[1]["first"] if len(top) > 1 else 0
-    if second and first >= second * 3:
+    if not second:
+        return "기록이 남은 집이 몇 안 됨. 그만큼 한 번 나오면 티가 크게 남."
+    if first >= second * 3:
         return f"1위가 {first}회인데 2위가 {second}회. {first // second}배 차이 남. 이 동네는 사실상 한 집 독주."
-    if second and first == second:
+    if first >= second * 2:
+        return f"1위 {first}회, 2위 {second}회. 2배 넘게 벌어짐. 여긴 한 집으로 쏠린다고 봐야 함."
+    if first >= second * 1.5:
+        return f"1위 {first}회, 2위 {second}회. 한 집이 확실히 앞서는데 따라붙는 집도 있음."
+    if first == second:
         return f"1·2위가 {first}회로 동률임. 여긴 몰리는 집 없이 골고루 나옴."
-    if second:
-        return f"1위랑 2위가 {first}회 대 {second}회. 생각보다 촘촘함."
-    return "기록이 남은 집이 몇 안 됨. 그만큼 한 번 나오면 티가 크게 남."
+    return f"1위랑 2위가 {first}회 대 {second}회. 생각보다 촘촘함."
 
 
-def build(district, stores):
+# 마지막 줄은 댓글을 부르는 자리다. '구 이름 남겨줘'는 댓글도 받고 다음에 쓸 지역까지
+# 같이 받는다. 매번 같은 문장이면 안 먹히니 돌려 쓴다.
+CLOSERS = (
+    "우리 동네도 궁금하면 댓글에 구 이름 남겨줘. 다음 글에 올림.",
+    "여기 가본 집 있음?",
+    "1위 집 앞 지나다닌 사람 있을 텐데 어떤 집인지 앎?",
+)
+
+
+def build(district, stores, index):
     gu = district.split()[-1]
     lines = [f"{gu}에서 로또 1등 제일 많이 나온 판매점 TOP5", ""]
     for i, s in enumerate(stores, 1):
         spot = f" ({where(s)})" if where(s) else ""
-        lines.append(f"{i}. {s['name']}{spot} — 1등 {s['first']}회")
-    lines += ["", hook(stores)]
+        lines.append(f"{i}. {name(s)}{spot} — 1등 {s['first']}회")
+    lines += ["", hook(stores), CLOSERS[index % len(CLOSERS)]]
     text = "\n".join(lines)
     assert len(text) <= LIMIT, f"{district} {len(text)}자 초과"
-    return {
-        "id": f"top5-{gu}",
+    post = {
+        # 구 이름만 쓰면 '중구'가 6개 시도에 있어서, 다른 시도를 돌릴 때 중복으로 걸러진다.
+        "id": "top5-" + district.replace(" ", "-"),
         "status": "pending",
         "slot": "am",
         "text": text,
-        "link": APP,
     }
+    # 매일 링크를 달면 계정이 광고판이 된다. 한 편 걸러 하나만 링크를 건다.
+    if index % 2 == 0:
+        post["link"] = APP
+    return post
 
 
 def main(sido, dry):
@@ -56,12 +87,12 @@ def main(sido, dry):
     done = {"서울 노원구"}
     picked = {
         k: v for k, v in districts.items()
-        # 1위조차 1등 2회 미만이면 훅이 안 나옴("1위가 1회, 2위가 1회") — 거른다.
-        if k.startswith(sido) and len(v) >= 3 and v[0]["first"] >= 2 and k not in done
+        # 1위가 1등 3회 미만이면 TOP5가 2·3회짜리 나열이라 읽을 게 없다 — 거른다.
+        if k.startswith(sido) and len(v) >= 3 and v[0]["first"] >= 3 and k not in done
     }
     # 1등 배출이 많은 구부터. 얘기거리가 많은 쪽을 먼저 쓴다.
     order = sorted(picked, key=lambda k: -sum(s["first"] for s in picked[k]))
-    posts = [build(k, picked[k]) for k in order]
+    posts = [build(k, picked[k], i) for i, k in enumerate(order)]
 
     if dry:
         print(f"{len(posts)}개 생성 (붙이지 않음)\n")

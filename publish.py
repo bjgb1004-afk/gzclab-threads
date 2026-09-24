@@ -1,4 +1,4 @@
-"""Publish one queued post to Threads, then drop its link in the first reply.
+"""Publish one queued post to Threads, then drop a short lead line + its link in the first reply.
 
 Queue lives in queue.json. Each run takes the oldest pending item, publishes it,
 marks it published, and commits the file back (the workflow does the commit).
@@ -13,6 +13,14 @@ import urllib.parse
 import urllib.request
 
 API = "https://graph.threads.net/v1.0"
+# 댓글에 링크만 던지면 광고로 읽힌다. 한 마디 붙이고 링크를 단다.
+# 매번 같은 문구면 그것도 봇 티가 나서 발행 순서대로 돌려 쓴다.
+REPLY_LINES = (
+    "동네별로 1등 많이 나온 집 지도에 다 찍어놨음. 여기서 확인:",
+    "내 주변 명당 어딘지 바로 보고 싶으면 이걸로 보면 됨:",
+    "전국 판매점 1등 횟수 정리해둔 앱임. 무료:",
+    "지도 켜고 가까운 순으로 보면 편함:",
+)
 QUEUE = pathlib.Path(__file__).with_name("queue.json")
 
 
@@ -58,12 +66,21 @@ def main():
         return 1
 
     slot = current_slot()
-    # 해당 슬롯 글이 떨어졌으면 아무거나 내보낸다. 거르는 것보다 나가는 게 낫다.
-    post = next((p for p in pending if p.get("slot") == slot), pending[0])
+    # 슬롯 글이 떨어졌을 때 그냥 맨 앞을 집으면 TOP5가 하루 세 번 나간다(큐 앞쪽이 전부
+    # TOP5라서). 같은 종류 연속이 제일 빨리 질리게 만드니, 직전 발행과 종류가 다른 걸 집는다.
+    # 큐 순서 != 발행 순서(새 글이 앞에 붙는다). 직전 발행은 시각으로만 알 수 있다.
+    done = [p for p in queue if p.get("published_at")]
+    last = max(done, key=lambda p: p["published_at"])["id"].split("-")[0] if done else None
+    post = next(
+        (p for p in pending if p.get("slot") == slot),
+        next((p for p in pending if p["id"].split("-")[0] != last), pending[0]),
+    )
     try:
         post_id = publish(post["text"])
         if post.get("link"):
-            publish(post["link"], reply_to=post_id)
+            done = sum(1 for p in queue if p.get("status") == "published")
+            lead = post.get("reply") or REPLY_LINES[done % len(REPLY_LINES)]
+            publish(f"{lead}\n{post['link']}", reply_to=post_id)
     except Exception as e:
         detail = e.read().decode()[:300] if hasattr(e, "read") else str(e)
         telegram(f"❌ 스레드 발행 실패\n{post['id']}\n{detail}")
@@ -71,6 +88,7 @@ def main():
 
     post["status"] = "published"
     post["post_id"] = post_id
+    post["published_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     left = len(pending) - 1
