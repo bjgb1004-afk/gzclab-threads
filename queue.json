@@ -499,9 +499,10 @@
   },
   {
     "id": "0924-night",
-    "status": "pending",
+    "status": "published",
     "text": "명당이라는 판매점 앞에서 20분 줄 서본 사람 나만 아니지?\n사면서도 이게 무슨 의미인가 싶은데 또 줄은 섬.",
-    "slot": "night"
+    "slot": "night",
+    "post_id": "18041373284824890"
   },
   {
     "id": "0925-am",
