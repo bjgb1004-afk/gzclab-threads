@@ -9,10 +9,11 @@
   },
   {
     "id": "top5-시흥시",
-    "status": "pending",
+    "status": "published",
     "slot": "am",
     "text": "시흥시에서 로또 1등 제일 많이 나온 판매점 TOP5\n\n1. 종합복권슈퍼 (정왕동) — 1등 12회\n2. 노다지복권방 (대야동) — 1등 9회\n3. 25시슈퍼 (정왕동) — 1등 8회\n4. 천하명당 (신천동) — 1등 7회\n5. 로또명당 (포동) — 1등 7회\n\n1위랑 2위가 12회 대 9회. 생각보다 촘촘함.",
-    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap"
+    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap",
+    "post_id": "18016277648740814"
   },
   {
     "id": "top5-파주시",
