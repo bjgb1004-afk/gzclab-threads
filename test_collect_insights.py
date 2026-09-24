@@ -36,6 +36,10 @@ assert calls == [], calls
 calls, _ = run_once([{"id": "a", "status": "pending", "published_at": OLD}])
 assert calls == [], calls
 
+# published before published_at tracking existed (old data, field missing) -> skipped, not crashed
+calls, _ = run_once([{"id": "a", "status": "published", "post_id": "m1"}])
+assert calls == [], calls
+
 # published <24h ago -> skipped, metrics not settled yet
 import datetime
 recent = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")

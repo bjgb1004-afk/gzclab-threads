@@ -30,7 +30,7 @@ def main():
     now = datetime.datetime.now(datetime.timezone.utc)
     due = [
         p for p in queue
-        if p.get("status") == "published" and p.get("post_id") and "insights" not in p
+        if p.get("status") == "published" and p.get("post_id") and p.get("published_at") and "insights" not in p
         and now - datetime.datetime.fromisoformat(p["published_at"]) >= datetime.timedelta(hours=24)
     ]
     if not due:
