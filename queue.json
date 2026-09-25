@@ -452,9 +452,11 @@
   },
   {
     "id": "0924-pm",
-    "status": "pending",
+    "status": "published",
     "text": "1등 되면\n1) 바로 퇴사\n2) 티 안 내고 다니다가 조용히 그만둠\n\n난 2번인데 다들 뭐임?",
-    "slot": "pm"
+    "slot": "pm",
+    "post_id": "17957060907235622",
+    "published_at": "2026-09-25T01:28:16+00:00"
   },
   {
     "id": "0924-night",
