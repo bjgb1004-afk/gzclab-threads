@@ -79,4 +79,66 @@ flags = {i["id"]: ok for i, ok in picked}
 assert flags["c2"] is True, "일반 댓글에는 되묻기 허용"
 assert flags["c4"] is False, "내 답글에 달린 댓글에는 되묻지 않는다"
 
+import datetime
+
+NOW = datetime.datetime(2026, 9, 25, tzinfo=datetime.timezone.utc)
+QUEUE = [
+    {"id": "top5-a", "status": "published", "post_id": "1",
+     "text": "...댓글에 구 이름 남겨줘. 다음 글에 올림.",
+     "published_at": "2026-09-24T00:00:00+00:00"},
+    {"id": "top5-old", "status": "published", "post_id": "2",
+     "text": "...댓글에 구 이름 남겨줘.",
+     "published_at": "2026-09-01T00:00:00+00:00"},
+    {"id": "talk-a", "status": "published", "post_id": "3",
+     "text": "...여기 가본 집 있음?",
+     "published_at": "2026-09-24T00:00:00+00:00"},
+    {"id": "top5-b", "status": "pending", "text": "...댓글에 구 이름 남겨줘."},
+]
+got = [p["id"] for p in auto_reply.targets(QUEUE, NOW)]
+assert got == ["top5-a"], got
+
+import json as _json
+import pathlib as _pathlib
+import tempfile
+
+import publish
+
+publish.TOKEN = "fake"  # main()이 conversation()에 넘기는 값. 네트워크는 타지 않는다.
+
+tmp = _pathlib.Path(tempfile.mkdtemp())
+(tmp / "queue.json").write_text(_json.dumps([
+    {"id": "top5-a", "status": "published", "post_id": "m1",
+     "text": "...댓글에 구 이름 남겨줘.",
+     "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")},
+]), encoding="utf-8")
+(tmp / "district_replies.json").write_text(
+    _json.dumps({"서울 노원구": "1. 스파 (상계동) 1등 52회"}), encoding="utf-8"
+)
+auto_reply.HERE = tmp
+auto_reply.REPLIES = tmp / "district_replies.json"
+
+TODAY = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+auto_reply.conversation = lambda media_id, token: [
+    {"id": "c1", "username": "u1", "text": "노원구", "replied_to": {"id": "m1"}, "timestamp": TODAY},
+    {"id": "c2", "username": "u2", "text": "ㅋㅋ", "replied_to": {"id": "m1"}, "timestamp": TODAY},
+]
+auto_reply.telegram = lambda text: None
+posted = []
+auto_reply.send = lambda text, reply_to: posted.append((text, reply_to)) or "new-id"
+
+assert auto_reply.main() == 0
+assert len(posted) == 1, posted  # 지역명 있는 댓글에만 답한다
+assert posted[0][1] == "c1", posted
+assert "노원구" in posted[0][0], posted
+
+# 하루 상한: 오늘 내가 단 답글이 DAILY_CAP 이상이면 멈춘다
+posted.clear()
+auto_reply.conversation = lambda media_id, token: (
+    [{"id": f"mine{i}", "username": "gzclab", "text": "x", "replied_to": {"id": "m1"}, "timestamp": TODAY}
+     for i in range(auto_reply.DAILY_CAP)]
+    + [{"id": "c9", "username": "u9", "text": "노원구", "replied_to": {"id": "m1"}, "timestamp": TODAY}]
+)
+assert auto_reply.main() == 0
+assert posted == [], "상한에 걸리면 답글을 달지 않는다"
+
 print("ok")
