@@ -29,6 +29,10 @@ jobs:
             MSG="🔑 Threads 토큰 갱신 완료 (60일 연장). 할 일 없음."
           else
             MSG="❌ Threads 토큰 갱신 실패. 만료되면 자동발행이 멈춥니다. 수동 재발급 필요."
+            FAILED=1
           fi
           curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
             -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode "text=$MSG" > /dev/null
+          # 텔레그램 전송이 성공하면 잡이 초록불로 끝나서, Actions 목록만 보면
+          # 갱신 실패를 알 수 없었다.
+          exit ${FAILED:-0}
