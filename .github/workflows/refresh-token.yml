@@ -23,6 +23,9 @@ jobs:
           # 앱 차단인지 구분할 수 없었다. 토큰 값은 응답 본문에만 있고 실패 시엔 없다.
           RESP=$(curl -s "https://graph.threads.net/v1.0/refresh_access_token?grant_type=th_refresh_token&access_token=$THREADS_TOKEN")
           echo "$RESP" | grep -o '"error".*' || echo "refresh ok"
+          NEW=$(printf '%s' "$RESP" | python -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))")
+          # 갱신이 같은 문자열을 돌려주면 저장할 게 없다 = PAT도 필요 없다. 값은 절대 찍지 않는다.
+          if [ -n "$NEW" ] && [ "$NEW" = "$THREADS_TOKEN" ]; then echo "PROBE: same token"; else echo "PROBE: different token"; fi
           if printf '%s' "$RESP" \
               | python -c "import json,sys; print(json.load(sys.stdin)['access_token'])" \
               | gh secret set THREADS_TOKEN --repo "$GITHUB_REPOSITORY"; then
