@@ -27,6 +27,10 @@ jobs:
           RESP=$(curl -s "https://graph.threads.net/v1.0/refresh_access_token?grant_type=th_refresh_token&access_token=$THREADS_TOKEN")
           echo "$RESP" | grep -o '"error".*' || echo "refresh ok"
           NEW=$(printf '%s' "$RESP" | python -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))")
+          # 만료가 실제로 리셋되는지 눈으로 본다. 이게 없으면 "60일 연장"은 추측이다.
+          SECS=$(printf '%s' "$RESP" | python -c "import json,sys; print(json.load(sys.stdin).get('expires_in') or 0)")
+          [ "$SECS" -gt 0 ] && EXP="$((SECS/86400))일 (~$(date -u -d "+$SECS seconds" +%F))" || EXP="미확인"
+          echo "EXPIRY: $EXP"
           # 갱신이 같은 문자열을 돌려주면 저장할 게 없다 = PAT도 필요 없다. 값은 절대 찍지 않는다.
           if [ -n "$NEW" ] && [ "$NEW" = "$THREADS_TOKEN" ]; then echo "PROBE: same token"; else echo "PROBE: different token"; fi
           # 실패 사유를 갈라놓는다. 전에는 PAT 미설정과 Threads 거부가 같은 문구로 와서
@@ -38,7 +42,7 @@ jobs:
             MSG="❌ Threads 토큰은 받았지만 저장 실패 — GH_PAT 시크릿이 없습니다. 등록 전까지 갱신이 누적되지 않습니다."
             FAILED=1
           elif printf '%s' "$NEW" | gh secret set THREADS_TOKEN --repo "$GITHUB_REPOSITORY"; then
-            MSG="🔑 Threads 토큰 갱신 완료 (만료 60일로 리셋). 할 일 없음."
+            MSG="🔑 Threads 토큰 갱신 완료. 만료: $EXP. 할 일 없음."
           else
             MSG="❌ Threads 토큰 저장 실패 — GH_PAT 권한/만료 확인 필요(Secrets 쓰기 권한)."
             FAILED=1
