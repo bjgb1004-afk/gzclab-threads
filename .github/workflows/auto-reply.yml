@@ -1,12 +1,13 @@
 name: Auto reply to comments
 
 on:
-  # cron은 토큰에 threads_manage_replies가 붙은 뒤에 켠다. 권한 없이 켜두면
-  # 10분마다 조회 실패 알림이 와서 하루 144건이 쌓인다.
-  # 아래 두 줄의 주석을 풀면 10분마다 돈다. Actions cron은 최소 5분이고 실제로는
-  # 더 밀리므로 답글까지 5~20분 걸린다. public 저장소라 실행 분 제한은 없다.
-  # schedule:
-  #   - cron: "*/10 * * * *"
+  schedule:
+    # 10분마다. Actions cron은 최소 5분이고 실제로는 더 밀리므로, 답글까지 5~20분
+    # 걸린다고 보면 된다. public 저장소라 실행 분 제한은 없다.
+    #
+    # 답글 읽기에 필요한 권한은 threads_manage_replies가 아니라 threads_read_replies다
+    # (전자는 답글 작성·숨김 관리용). 2026-09-25에 이것 때문에 하루를 썼다.
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 # 실행이 밀려 두 개가 겹치면 같은 댓글에 답글이 두 번 달린다. 앞의 것이 끝나기를 기다린다.

@@ -18,19 +18,21 @@ Threads(@gzclab) 자동 발행. 큐에 쌓아둔 글을 하루 3번(KST 07:07 / 
 
 1. https://developers.facebook.com/apps 에서 앱 생성 → 사용 사례에서 **Threads API** 선택.
 2. 앱 설정에서 **Threads 앱 ID / 앱 시크릿**을 확인한다(페이스북 앱 ID와 다른 값이다).
-3. 권한(스코프)에 `threads_basic`, `threads_content_publish`, `threads_manage_replies`,
-   `threads_manage_insights`를 추가한다. 각각 무엇에 쓰는지:
+3. 권한(스코프)에 `threads_basic`, `threads_content_publish`, `threads_read_replies`,
+   `threads_manage_replies`, `threads_manage_insights`를 추가한다. 각각 무엇에 쓰는지:
 
    | 스코프 | 없으면 안 되는 것 |
    | --- | --- |
    | `threads_basic` | 전부 |
    | `threads_content_publish` | 본문 발행, 링크 답글, 자동 답글 — **쓰기는 전부 이것 하나면 된다** |
-   | `threads_manage_replies` | 댓글 **읽기**(`/{id}/conversation`). 자동 답글이 누가 뭐라 달았는지 알려면 필요 |
+   | `threads_read_replies` | 댓글 **읽기**(`/{id}/conversation`). 자동 답글에 필수 |
+   | `threads_manage_replies` | 답글 **숨김·관리**. 읽기에는 쓰이지 않는다 |
    | `threads_manage_insights` | 조회수·좋아요 수집(`collect_insights.py`) |
 
-   > 스코프는 인증 창에서 실제로 체크된 것만 토큰에 붙는다. 앱 설정에 적어두는 것만으로는
-   > 안 붙는다. 2026-09-25에 이 문서에 `threads_manage_replies`가 적혀 있었는데도
-   > 실제 토큰에는 없어서 `code 10: Application does not have permission`이 났다.
+   > **이름이 비슷한 둘을 헷갈리지 말 것.** 댓글을 읽는 것은 `threads_read_replies`다.
+   > `threads_manage_replies`로는 `/{id}/conversation`이 `code 10`으로 거절된다.
+   > 2026-09-25에 이 문서가 `threads_manage_replies`만 적고 있어서 하루를 썼다.
+   >
    > 발급 후 아래로 확인할 것:
    >
    > ```
@@ -39,9 +41,17 @@ Threads(@gzclab) 자동 발행. 큐에 쌓아둔 글을 하루 3번(KST 07:07 / 
    >
    > `{"data":[...]}`가 나오면 붙은 것이고, `code 10`이면 안 붙은 것이다.
 4. 앱에 @gzclab 계정을 Threads 테스터로 추가하고, 계정 쪽에서 수락한다.
-5. 인증 창(Authorization Window)으로 로그인해 코드 → **단기 토큰(1시간)** 을 받는다.
-6. 단기 토큰을 **장기 토큰(60일)** 으로 교환한다:
-   `GET https://graph.threads.net/v1.0/access_token?grant_type=th_exchange_token&client_secret=<앱시크릿>&access_token=<단기토큰>`
+5. **토큰은 사용자 토큰 생성기로 받는 것이 빠르다.** 사용 사례 → Threads API → 설정 화면
+   맨 아래 `사용자 토큰 생성기`에서 @gzclab 행의 생성 버튼을 누르면 **장기 토큰이 바로**
+   나온다. OAuth 인증 창과 `redirect_uri`를 통째로 건너뛴다.
+
+   인증 창 방식이 필요하면(스코프를 직접 고르고 싶을 때):
+   `https://threads.net/oauth/authorize?client_id=<앱ID>&redirect_uri=<리디렉션URI>&scope=<쉼표구분>&response_type=code`
+   → `?code=...#_`에서 `#_`를 뺀 코드를 단기 토큰으로 교환하고, 다시 장기 토큰으로 교환한다:
+   `GET https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=<앱시크릿>&access_token=<단기토큰>`
+
+   > 인증 창이 `error_code: 4476001`("URI에 리디렉션이 없습니다")을 계속 뱉으면
+   > 붙들고 있지 말고 토큰 생성기를 써라. 리디렉션 URL이 등록돼 있는데도 나는 경우가 있다.
 
 ## 2. GitHub 시크릿 등록
 
