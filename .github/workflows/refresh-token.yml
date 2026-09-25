@@ -19,7 +19,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           set -o pipefail
-          if curl -sf "https://graph.threads.net/v1.0/refresh_access_token?grant_type=th_refresh_token&access_token=$THREADS_TOKEN" \
+          # 실패 사유를 로그에 남긴다. -sf만 쓰면 에러 본문이 버려져서 만료인지
+          # 앱 차단인지 구분할 수 없었다. 토큰 값은 응답 본문에만 있고 실패 시엔 없다.
+          RESP=$(curl -s "https://graph.threads.net/v1.0/refresh_access_token?grant_type=th_refresh_token&access_token=$THREADS_TOKEN")
+          echo "$RESP" | grep -o '"error".*' || echo "refresh ok"
+          if printf '%s' "$RESP" \
               | python -c "import json,sys; print(json.load(sys.stdin)['access_token'])" \
               | gh secret set THREADS_TOKEN --repo "$GITHUB_REPOSITORY"; then
             MSG="🔑 Threads 토큰 갱신 완료 (60일 연장). 할 일 없음."
