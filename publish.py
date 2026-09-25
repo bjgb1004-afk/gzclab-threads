@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -27,8 +28,13 @@ QUEUE = pathlib.Path(__file__).with_name("queue.json")
 def api(path, params):
     body = urllib.parse.urlencode(params).encode()
     req = urllib.request.Request(f"{API}/{path}", data=body, method="POST")
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        # 에러 본문은 한 번만 읽을 수 있다. 호출부에서 읽어 텔레그램으로만 보내면
+        # Actions 로그에는 "HTTP Error 400: Bad Request"만 남고 이유가 사라진다.
+        raise RuntimeError(f"{path} {e.code}: {e.read().decode(errors='replace')[:400]}") from None
 
 
 def publish(text, reply_to=None):
@@ -75,21 +81,28 @@ def main():
         (p for p in pending if p.get("slot") == slot),
         next((p for p in pending if p["id"].split("-")[0] != last), pending[0]),
     )
+    published_count = sum(1 for p in queue if p.get("status") == "published")
     try:
         post_id = publish(post["text"])
-        if post.get("link"):
-            done = sum(1 for p in queue if p.get("status") == "published")
-            lead = post.get("reply") or REPLY_LINES[done % len(REPLY_LINES)]
-            publish(f"{lead}\n{post['link']}", reply_to=post_id)
     except Exception as e:
-        detail = e.read().decode()[:300] if hasattr(e, "read") else str(e)
-        telegram(f"❌ 스레드 발행 실패\n{post['id']}\n{detail}")
+        print(e, file=sys.stderr)
+        telegram(f"❌ 스레드 발행 실패\n{post['id']}\n{e}")
         raise
 
+    # 본문 성공을 먼저 기록한다. 답글에서 죽었을 때 pending으로 남기면
+    # 다음 실행이 이미 올라간 글을 또 올린다.
     post["status"] = "published"
     post["post_id"] = post_id
     post["published_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    if post.get("link"):
+        lead = post.get("reply") or REPLY_LINES[published_count % len(REPLY_LINES)]
+        try:
+            publish(f"{lead}\n{post['link']}", reply_to=post_id)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            telegram(f"⚠️ 본문은 올랐는데 링크 답글 실패\n{post['id']}\n{e}")
 
     left = len(pending) - 1
     msg = f"✅ 스레드 발행됨 ({post['id']})\nhttps://www.threads.net/@gzclab\n남은 큐: {left}개"
