@@ -2,7 +2,10 @@ name: Refresh Threads token
 
 on:
   schedule:
-    - cron: "0 1 1 * *" # 매월 1일 KST 10시 — 60일 만료 전 갱신
+    # 매주 일요일 KST 10시. 토큰은 갱신할 때마다 만료가 60일로 되돌아가므로,
+    # 주 1회면 만료 전에 8번의 기회가 생긴다(월 1회는 2번뿐이라, 연속 2회 실패하면
+    # 토큰이 죽었다). 갱신은 토큰이 24시간 이상 지났을 때만 되는데 주 1회는 항상 만족.
+    - cron: "0 1 * * 0"
   workflow_dispatch:
 
 jobs:
@@ -26,12 +29,18 @@ jobs:
           NEW=$(printf '%s' "$RESP" | python -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))")
           # 갱신이 같은 문자열을 돌려주면 저장할 게 없다 = PAT도 필요 없다. 값은 절대 찍지 않는다.
           if [ -n "$NEW" ] && [ "$NEW" = "$THREADS_TOKEN" ]; then echo "PROBE: same token"; else echo "PROBE: different token"; fi
-          if printf '%s' "$RESP" \
-              | python -c "import json,sys; print(json.load(sys.stdin)['access_token'])" \
-              | gh secret set THREADS_TOKEN --repo "$GITHUB_REPOSITORY"; then
-            MSG="🔑 Threads 토큰 갱신 완료 (60일 연장). 할 일 없음."
+          # 실패 사유를 갈라놓는다. 전에는 PAT 미설정과 Threads 거부가 같은 문구로 와서
+          # 텔레그램만 보고는 뭘 고쳐야 하는지 알 수 없었다.
+          if [ -z "$NEW" ]; then
+            MSG="❌ Threads 토큰 갱신 실패 — Threads가 거부했습니다. Actions 로그의 error 본문 확인. 만료되면 자동발행이 멈춥니다."
+            FAILED=1
+          elif [ -z "$GH_TOKEN" ]; then
+            MSG="❌ Threads 토큰은 받았지만 저장 실패 — GH_PAT 시크릿이 없습니다. 등록 전까지 갱신이 누적되지 않습니다."
+            FAILED=1
+          elif printf '%s' "$NEW" | gh secret set THREADS_TOKEN --repo "$GITHUB_REPOSITORY"; then
+            MSG="🔑 Threads 토큰 갱신 완료 (만료 60일로 리셋). 할 일 없음."
           else
-            MSG="❌ Threads 토큰 갱신 실패. 만료되면 자동발행이 멈춥니다. 수동 재발급 필요."
+            MSG="❌ Threads 토큰 저장 실패 — GH_PAT 권한/만료 확인 필요(Secrets 쓰기 권한)."
             FAILED=1
           fi
           curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
