@@ -65,3 +65,20 @@ def compose(kind, value, username, replies, followup_ok):
     if kind == "need_gu":
         return f"{username}아 구까지 말해주면 바로 뽑아줄게. {value} 어느 구?"
     return None
+
+
+def pick(items, my_ids):
+    """답할 댓글만 고른다. (항목, 되묻기 허용) 목록.
+
+    이미 답했는지는 conversation 응답만 보고 안다 — 내 답글이 그 댓글을 부모로
+    달려 있으면 끝난 것이다. 그래서 상태 파일이 없다.
+    """
+    answered = {i.get("replied_to", {}).get("id") for i in items if i["username"] == ME}
+    out = []
+    for item in items:
+        if item["username"] == ME or item["id"] in answered:
+            continue
+        # 내 되묻기에 달린 댓글에 또 되물으면 무한히 돈다. 확정일 때만 답한다.
+        followup_ok = item.get("replied_to", {}).get("id") not in my_ids
+        out.append((item, followup_ok))
+    return out

@@ -58,4 +58,25 @@ assert auto_reply.compose(None, None, "u1", REPLIES, True) is None
 # 구운 데이터에 없는 구 -> 침묵
 assert auto_reply.compose("hit", "경기 성남시 분당구", "u1", REPLIES, True) is None
 
+# conversation 응답 모양: 내 글(root) 아래 댓글들, 그 아래 내 답글들
+ITEMS = [
+    {"id": "c1", "username": "u1", "text": "노원구", "replied_to": {"id": "root"}},
+    {"id": "r1", "username": "gzclab", "text": "이미 답함", "replied_to": {"id": "c1"}},
+    {"id": "c2", "username": "u2", "text": "중구", "replied_to": {"id": "root"}},
+    {"id": "c3", "username": "gzclab", "text": "내 링크 답글", "replied_to": {"id": "root"}},
+    {"id": "c4", "username": "u3", "text": "몰라", "replied_to": {"id": "q1"}},
+]
+MY_IDS = {"r1", "c3", "q1"}
+
+picked = auto_reply.pick(ITEMS, MY_IDS)
+ids = [i["id"] for i, _ in picked]
+assert "c1" not in ids, "이미 내 답글이 달린 댓글은 건너뛴다"
+assert "c3" not in ids, "내 댓글은 건너뛴다"
+assert "c2" in ids, ids
+assert "c4" in ids, ids
+
+flags = {i["id"]: ok for i, ok in picked}
+assert flags["c2"] is True, "일반 댓글에는 되묻기 허용"
+assert flags["c4"] is False, "내 답글에 달린 댓글에는 되묻지 않는다"
+
 print("ok")
