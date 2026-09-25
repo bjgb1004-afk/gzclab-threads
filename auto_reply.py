@@ -48,3 +48,20 @@ def match(text, keys):
             return "need_gu", sido
 
     return None, None
+
+
+def compose(kind, value, username, replies, followup_ok):
+    """답글 본문. 답할 것이 없으면 None."""
+    if kind == "hit":
+        body = replies.get(value)
+        if not body:  # 1위가 2회짜리라 굽는 단계에서 걸러진 구
+            return None
+        gu = value.split()[-1]
+        return f"{username}아 {gu} 1등 많이 나온 집 뽑아왔어!\n\n{body}"
+    if not followup_ok:
+        return None
+    if kind == "ambiguous":
+        return f"{username}아 그 이름이 여러 군데 있어 ㅋㅋ {' / '.join(value)} 중에 어디야?"
+    if kind == "need_gu":
+        return f"{username}아 구까지 말해주면 바로 뽑아줄게. {value} 어느 구?"
+    return None
