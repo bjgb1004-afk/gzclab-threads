@@ -32,6 +32,11 @@ Threads(@gzclab) 자동 발행. 큐에 쌓아둔 글을 하루 3번(KST 07:07 / 
 > `repo` 클래식 스코프는 모든 저장소의 전체 통제권을 준다. 여기 필요한 건 이 저장소의
 > 시크릿 쓰기 하나뿐이라 fine-grained로 좁힌다. PAT 자체에 만료를 걸면 그 날 갱신이
 > 조용히 멈추므로 `No expiration`으로 둔다(대신 갱신 실패 시 텔레그램 알림이 온다).
+>
+> UI 주의: 토큰 상세 페이지는 읽기 전용 요약이라 권한 드롭다운이 없다. `Edit`
+> (URL 끝에 `/edit`)로 들어가야 바꿀 수 있다. 목록에서 고를 것은 설명이
+> "Manage Actions repository secrets"인 `Secrets` — `Dependabot secrets`,
+> `Codespaces secrets`, `Secret scanning alerts`는 다른 것이다.
 
 ## 3. 한도
 
