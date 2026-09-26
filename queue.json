@@ -1,5 +1,25 @@
 [
   {
+    "id": "intro-1",
+    "status": "pending",
+    "slot": "am",
+    "text": "이 계정 팔로워 늘리려고 만든 거 아님.\n\n혼자 앱 만들다 보니까 적어둘 데가 필요했음. 그게 여기임.\n지금까지 만든 거 여섯 개. 셋은 돌아가고, 하나는 스토어 심사 중, 둘은 아직 만들고 있음.\n\n잘된 것만 올리는 계정 아님. 안 된 것도 같이 올림."
+  },
+  {
+    "id": "intro-2",
+    "status": "pending",
+    "slot": "pm",
+    "text": "코드는 내가 안 짬. AI 에이전트한테 짜게 시킴.\n\n나는 뭐가 불편한지, 뭘 만들지만 정함. 그렇게 혼자 여섯 개가 나왔음.\n\n개발 몰라도 되냐고 물으면 — 되긴 됨. 근데 제일 어려운 건 코드가 아니고 '뭘 만들지' 정하는 거임. 거기서 다 막힘."
+  },
+  {
+    "id": "intro-3",
+    "status": "pending",
+    "slot": "night",
+    "text": "여섯 개 중 첫 번째가 복권명당. 로또 판매점 지도 앱임.\n\n'명당'이라고 소문난 집이랑 실제로 1등 많이 나온 집이 다른 경우가 훨씬 많음. 그거 확인하려고 만들었음.\n전국 판매점 1등 횟수 다 들어가 있고, 이 계정 글도 그 데이터로 씀.\n\n동네별 TOP5 계속 올릴 건데, 궁금한 구 있으면 댓글에 남겨줘.",
+    "reply": "전국 판매점 1등 횟수 정리해둔 앱임. 무료:",
+    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dintro"
+  },
+  {
     "id": "top5-경기-용인시-기흥구",
     "status": "published",
     "slot": "am",
