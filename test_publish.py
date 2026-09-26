@@ -7,6 +7,7 @@ import tempfile
 import publish
 
 publish.TOKEN = "fake"
+real_publish = publish.publish  # run_once가 publish.publish를 스텁으로 갈아버린다
 
 
 def run_once(queue_items):
@@ -61,5 +62,35 @@ assert calls[0][0] == "잡담", calls  # 슬롯이 비어도 TOP5 연속은 피�
 code, calls, _ = run_once([{"id": "a", "status": "published", "text": "done"}])
 assert code == 1
 assert any(c[0] == "telegram" and "큐가 비었" in c[1] for c in calls), calls
+
+
+# 발행 재시도: 컨테이너 전파 지연(4279009)은 넘기고, 다른 에러는 즉시 올린다
+publish.time.sleep = lambda _: None
+MEDIA_NOT_FOUND = 'me/threads_publish 400: {"error":{"code":24,"error_subcode":4279009}}'
+tries = []
+
+
+def fake_api(path, params):
+    tries.append(path)
+    if path == "me/threads":
+        return {"id": "c1"}
+    if len([t for t in tries if t == "me/threads_publish"]) < 3:
+        raise RuntimeError(MEDIA_NOT_FOUND)
+    return {"id": "posted-1"}
+
+
+publish.api = fake_api
+assert real_publish("본문") == "posted-1", tries
+assert tries.count("me/threads_publish") == 3, tries
+
+tries.clear()
+publish.api = lambda path, params: {"id": "c1"} if path == "me/threads" else (_ for _ in ()).throw(
+    RuntimeError("me/threads_publish 400: rate limited")
+)
+try:
+    real_publish("본문")
+    raise AssertionError("4279009이 아닌 에러는 재시도 없이 올라가야 한다")
+except RuntimeError as e:
+    assert "rate limited" in str(e), e
 
 print("ok")

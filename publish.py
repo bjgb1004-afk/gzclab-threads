@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -42,7 +43,18 @@ def publish(text, reply_to=None):
     if reply_to:
         params["reply_to_id"] = reply_to
     container = api("me/threads", params)["id"]
-    return api("me/threads_publish", {"creation_id": container, "access_token": TOKEN})["id"]
+    # 만든 컨테이너가 발행 엔드포인트까지 퍼지기 전에 발행하면 "Media Not Found"(4279009)로 죽는다.
+    # 2026-09-25 파주 링크답글, 2026-09-26 화성 본문이 이걸로 날아갔다. 컨테이너 status는
+    # 즉시 FINISHED로 나오므로(직접 확인) status 폴링으로는 안 걸러진다 — 기다리고 재시도한다.
+    for wait in (5, 20, 40):
+        time.sleep(wait)
+        try:
+            return api("me/threads_publish", {"creation_id": container, "access_token": TOKEN})["id"]
+        except RuntimeError as e:
+            if "4279009" not in str(e):
+                raise
+            last = e
+    raise last
 
 
 def telegram(text):
