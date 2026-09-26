@@ -50,22 +50,34 @@ def hook(top):
     return f"1위랑 2위가 {first}회 대 {second}회. 생각보다 촘촘함."
 
 
-# 마지막 줄은 댓글을 부르는 자리다. '구 이름 남겨줘'는 댓글도 받고 다음에 쓸 지역까지
-# 같이 받는다. 매번 같은 문장이면 안 먹히니 돌려 쓴다.
-CLOSERS = (
-    "우리 동네도 궁금하면 댓글에 구 이름 남겨줘. 다음 글에 올림.",
-    "여기 가본 집 있음?",
-    "1위 집 앞 지나다닌 사람 있을 텐데 어떤 집인지 앎?",
+# 댓글을 부르는 줄은 본문 맨 아래가 아니라 제목 바로 다음에 둔다. 피드에서 긴 글은
+# 몇 줄 뒤로 접히는데, 지금까지 이 줄이 리스트 아래에 있어서 2,676뷰짜리 글도 외부
+# 댓글이 0이었다(2026-09-26 확인: 달린 답글 1개는 우리가 단 링크였다).
+# "바로 답 달아줌"을 명시한다 — auto_reply.py가 실제로 즉시 TOP3를 달아주는데
+# 본문이 그 즉시성을 안 알려주고 있었다("다음 글에 올림"은 보상이 너무 멀다).
+# 세 문장 모두 "구 이름 남겨줘"를 포함해야 한다. auto_reply.targets()가 그 문구로
+# 대상 글을 고르므로, 빠진 문장이 나가면 그 글은 댓글이 와도 자동답글이 안 된다.
+OPENERS = (
+    "궁금한 동네 있으면 댓글에 구 이름 남겨줘. 그 동네 TOP3 바로 답으로 달아줌.",
+    "댓글에 구 이름 남겨줘. 1등 많이 나온 집 바로 뽑아서 답 달아줌.",
+    "우리 동네도 보고 싶으면 댓글에 구 이름 남겨줘. 기다릴 필요 없이 바로 답 감.",
 )
+assert all("구 이름 남겨줘" in o for o in OPENERS), "auto_reply가 대상에서 놓친다"
 
 
 def build(district, stores, index):
     gu = district.split()[-1]
-    lines = [f"{gu}에서 로또 1등 제일 많이 나온 판매점 TOP5", ""]
+    lines = [
+        # 제목의 "<구> 로또 1등 판매점"은 검색 유입 자산이라 건드리지 않는다.
+        f"{gu}에서 로또 1등 제일 많이 나온 판매점 TOP5",
+        "",
+        OPENERS[index % len(OPENERS)],
+        "",
+    ]
     for i, s in enumerate(stores, 1):
         spot = f" ({where(s)})" if where(s) else ""
         lines.append(f"{i}. {name(s)}{spot} — 1등 {s['first']}회")
-    lines += ["", hook(stores), CLOSERS[index % len(CLOSERS)]]
+    lines += ["", hook(stores)]
     text = "\n".join(lines)
     assert len(text) <= LIMIT, f"{district} {len(text)}자 초과"
     post = {
