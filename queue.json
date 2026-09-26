@@ -529,9 +529,11 @@
   },
   {
     "id": "0926-night",
-    "status": "pending",
+    "status": "published",
     "text": "1등 말고 3등(150만원쯤) 됐다 치자. 뭐 할 거임?\n난 그 돈으로 그냥 밀린 카드값 낼 듯. 현실.",
-    "slot": "night"
+    "slot": "night",
+    "post_id": "17912470743527114",
+    "published_at": "2026-09-26T08:31:24+00:00"
   },
   {
     "id": "0927-am",
