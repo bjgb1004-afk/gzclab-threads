@@ -73,10 +73,12 @@
   },
   {
     "id": "top5-경기-김포시",
-    "status": "pending",
+    "status": "published",
     "slot": "am",
     "text": "김포시에서 로또 1등 제일 많이 나온 판매점 TOP5\n\n우리 동네도 보고 싶으면 댓글에 구 이름 남겨줘. 기다릴 필요 없이 바로 답 감.\n\n1. 김포로또 (사우동) — 1등 9회\n2. 대운 (대곶면) — 1등 7회\n3. 차부상회 (통진읍) — 1등 5회\n4. 김포로또판매 (하성면) — 1등 5회\n5. 홈돌이로또복권 (감정동) — 1등 5회\n\n1위랑 2위가 9회 대 7회. 생각보다 촘촘함.",
-    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dtop5"
+    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dtop5",
+    "post_id": "18118808120062570",
+    "published_at": "2026-09-27T16:54:44+00:00"
   },
   {
     "id": "top5-경기-수원시-장안구",
