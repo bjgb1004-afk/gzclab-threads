@@ -574,10 +574,12 @@
   },
   {
     "id": "0927-night",
-    "status": "pending",
+    "status": "published",
     "text": "앱 다섯 개 만들었는데 첫 번째가 이 로또 판매점 지도였음.\n설치 수보다 '어제 우리 동네 여기서 1등 나왔네' 댓글 한 줄이 더 좋더라.",
     "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dtalk",
-    "slot": "night"
+    "slot": "night",
+    "post_id": "17987582106111044",
+    "published_at": "2026-09-27T09:10:25+00:00"
   },
   {
     "id": "talk-pm-01",
