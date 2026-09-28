@@ -65,11 +65,18 @@ OPENERS = (
 assert all("구 이름 남겨줘" in o for o in OPENERS), "auto_reply가 대상에서 놓친다"
 
 
+# 시도를 안 붙이면 헷갈리는 이름 (districts.json에서 2개 시도 이상에 있는 이름 + 광주광역시와 겹치는 광주시)
+AMBIGUOUS = {"광주시", "중구", "동구", "서구", "남구", "북구", "강서구", "고성군", "군위군", "보성군"}
+
+
 def build(district, stores, index):
     parts = district.split()
     # "기흥구"만 쓰면 어느 시인지 사라진다. 일반구(도 시 구, 3토막)는 시 이름을 붙인다.
     # 실측: 구 단위 글 조회수가 시 단위의 1/3(기흥 1667·단원 763·장안 253 vs 시 중앙값 2694).
     gu = " ".join(parts[1:]) if len(parts) == 3 else parts[-1]
+    # '광주시'는 광주광역시, '중구'·'강서구'는 여러 시도에 있어서 이름만으론 어딘지 모른다.
+    if len(parts) == 2 and parts[1] in AMBIGUOUS:
+        gu = district
     lines = [
         # 제목의 "<구> 로또 1등 판매점"은 검색 유입 자산이라 건드리지 않는다.
         f"{gu}에서 로또 1등 제일 많이 나온 판매점 TOP5",
