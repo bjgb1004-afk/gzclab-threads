@@ -66,7 +66,10 @@ assert all("구 이름 남겨줘" in o for o in OPENERS), "auto_reply가 대상�
 
 
 def build(district, stores, index):
-    gu = district.split()[-1]
+    parts = district.split()
+    # "기흥구"만 쓰면 어느 시인지 사라진다. 일반구(도 시 구, 3토막)는 시 이름을 붙인다.
+    # 실측: 구 단위 글 조회수가 시 단위의 1/3(기흥 1667·단원 763·장안 253 vs 시 중앙값 2694).
+    gu = " ".join(parts[1:]) if len(parts) == 3 else parts[-1]
     lines = [
         # 제목의 "<구> 로또 1등 판매점"은 검색 유입 자산이라 건드리지 않는다.
         f"{gu}에서 로또 1등 제일 많이 나온 판매점 TOP5",
