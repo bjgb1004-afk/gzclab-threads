@@ -34,4 +34,6 @@ jobs:
           git config user.email "actions@github.com"
           git add queue.json
           git diff --cached --quiet || git commit -m "chore: mark published"
-          git push
+          # lotto-picks 워크플로도 queue.json을 커밋한다. 그쪽이 먼저 올렸으면 그냥 push는
+          # 거절되고, 발행 기록이 사라져 같은 글이 다음 슬롯에 또 나간다. rebase해서 올린다.
+          git pull --rebase --autostash && git push

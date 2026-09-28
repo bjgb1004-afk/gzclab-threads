@@ -11,6 +11,9 @@ Threads(@gzclab) 자동 발행. 큐에 쌓아둔 글을 하루 3번(KST 07:07 / 
 - `auto_reply.py` + `auto-reply.yml` — 댓글에 달린 지역명을 읽어 그 동네 TOP3를 답글로 단다.
 - `bake_replies.py` + `district_replies.json` — 구별 답글 문장을 미리 구워둔 것.
   `districts.json`이 Actions에 없어서 런타임에 만들 수 없다.
+- `lotto_picks.py` + `lotto-picks.yml` — 천재 5인 번호 주간 시리즈(아래 5절).
+- `lotto_gen.py` + `math_digits.py` — 번호 생성기. 복권명당 앱과 같은 번호를 낸다.
+- `picks.json` — 회차별로 올린 번호·글 id·채점 결과. 워크플로가 커밋한다.
 - `test_publish.py`, `test_collect_insights.py`, `test_auto_reply.py` —
   `python test_*.py`. 네트워크 없이 로직만 검증.
 
@@ -96,3 +99,26 @@ Threads(@gzclab) 자동 발행. 큐에 쌓아둔 글을 하루 3번(KST 07:07 / 
 - 새 시도 데이터를 추가했으면 로컬에서 `python bake_replies.py`를 돌리고
   `district_replies.json`을 커밋해야 자동 답글에 반영된다. `districts.json`은 로컬에만
   있으므로 Actions는 구운 결과만 본다.
+
+## 5. 천재 5인 번호 시리즈 (`lotto_picks.py`)
+
+| 언제 (KST) | 무엇 |
+| --- | --- |
+| 월 17:07 | 아르키메데스 5게임 (원주율 π) |
+| 화 17:07 | 피보나치 5게임 (황금비) |
+| 수 17:07 | 파스칼 5게임 (파스칼 삼각형) |
+| 목 17:07 | 오일러 5게임 (자연상수 e) |
+| 금 17:07 | 가우스 5게임 (합 138 근처) |
+| 토 17:07 | 명당 5게임 — 구별 1위·1등 10회 이상 판매점 5곳을 회차마다 돌아가며, 그 이름으로 1게임씩. 앱 링크 답글 |
+| 토 21:37~일 11:37 | 채점 글(30게임, 이번 주 1위, 누적 승수) + 각 요일 글에 "이 글 채점" 답글 |
+
+- 19:37에 한 번 더 돈다(Actions가 예약 실행을 빼먹을 때 대비). 이미 올렸으면 아무것도 안 한다.
+- 모든 글 둘째 줄에 "댓글에 구 이름 남겨줘"가 있어서 자동답글 대상이다. 답글은 그 동네 TOP3 +
+  **그 동네 이름으로 뽑은 이번 주 번호 1게임**. 번호 줄은 모든 자동답글에 붙는다(주 단위로 바뀜).
+- 당첨번호는 GitHub 미러 `smok95/lotto`에서 받는다(앱 수집 배치와 같은 출처). 일요일 11:37까지
+  안 올라오면 텔레그램 알림이 오고 채점 글은 안 나간다. 그때는 미러가 채워진 뒤
+  Actions에서 `Genius picks series`를 수동 실행하면 된다(`auto`가 일요일엔 채점을 한다).
+- 번호는 (회차, 천재)로 고정이다. 앱 `src/features/generator/geniusGenerator.ts`와
+  `lotto_gen.py`는 비트 단위로 같아야 하고, 양쪽 테스트에 같은 GOLDEN 값이 있다. 한쪽만 고치지 말 것.
+- 미리보기: `python lotto_picks.py daily --dry --now 2026-10-02T17:07:00+09:00`
+- 한도: 주 7글 + 링크답글 2 + 채점답글 6 = 주 15건 추가. 24시간 250건 한도에 영향 없음.

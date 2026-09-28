@@ -13,12 +13,14 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import lotto_gen
 import publish
 from publish import API, telegram
 
 HERE = pathlib.Path(__file__).parent
 REPLIES = HERE / "district_replies.json"
 ME = "gzclab"
+REPLY_LIMIT = 500  # Threads 글자 제한. 넘으면 번호 줄을 빼고 TOP3만 보낸다
 
 
 def match(text, keys):
@@ -59,14 +61,23 @@ def match(text, keys):
     return None, None
 
 
-def compose(kind, value, username, replies, followup_ok):
-    """답글 본문. 답할 것이 없으면 None."""
+def compose(kind, value, username, replies, followup_ok, draw_no=None):
+    """답글 본문. 답할 것이 없으면 None.
+
+    draw_no가 있으면 그 동네 이름으로 뽑은 이번 주 명당 번호 1게임을 붙인다
+    ("댓글에 구 이름 남기면 그 동네 명당 번호 뽑아줌"). 같은 주·같은 동네면 누구에게나 같은 번호.
+    """
     if kind == "hit":
         body = replies.get(value)
         if not body:  # 1위가 2회짜리라 굽는 단계에서 걸러진 구
             return None
         gu = value.split()[-1]
-        return f"{username}아 {gu} 1등 많이 나온 집 뽑아왔어!\n\n{body}"
+        text = f"{username}아 {gu} 1등 많이 나온 집 뽑아왔어!\n\n{body}"
+        if draw_no:
+            extra = f"\n\n{gu} 명당 기운으로 뽑은 {draw_no}회 번호: {lotto_gen.fmt(lotto_gen.store_game(value, draw_no))}"
+            if len(text) + len(extra) <= REPLY_LIMIT:
+                text += extra
+        return text
     if not followup_ok:
         return None
     if kind == "ambiguous":
@@ -137,6 +148,7 @@ def main():
     keys = list(replies)
     now = datetime.datetime.now(datetime.timezone.utc)
     today = now.date().isoformat()
+    draw_no = lotto_gen.upcoming_draw_no(now)
 
     sent = 0
     for post in targets(queue, now):
@@ -163,7 +175,7 @@ def main():
             if sent >= RUN_CAP:
                 break
             kind, value = match(item["text"], keys)
-            msg = compose(kind, value, item["username"], replies, followup_ok)
+            msg = compose(kind, value, item["username"], replies, followup_ok, draw_no)
             if not msg:
                 continue
             try:
