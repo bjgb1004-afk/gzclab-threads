@@ -158,6 +158,70 @@ def test_auto_reply_adds_this_weeks_number():
     assert "명당 기운" not in auto_reply.compose("hit", "서울 노원구", "u1", replies, True)
 
 
+def fake_history(last):
+    """1~last회 가짜 당첨번호(결정론적). 통계 계산이 도는지만 본다."""
+    return {n: g.store_game(f"h{n}", n) for n in range(1, last + 1)}
+
+
+def test_stats_post_is_facts_only_and_fits():
+    import lotto_stats
+
+    draws = fake_history(1243)
+    stats = lotto_stats.analyze(draws, 1243)
+    text = lotto_stats.build_post(stats)
+    assert text.startswith("1244회 로또 흐름 정리")
+    assert "댓글 남기면 1244회 추천 조합" in text.split("\n")[1]
+    assert len(text) <= lp.LIMIT
+    assert "확률이 같음" in text
+    # 가장 오래 쉰 번호는 실제로 그만큼 안 나왔어야 한다
+    n, gap = stats["longest"]
+    assert all(n not in draws[k] for k in range(1244 - gap, 1244))
+    assert n in draws[1243 - gap]
+
+
+def test_sunday_stats_post_and_combo_replies():
+    import lotto_stats
+
+    calls = sandbox()
+    lotto_stats.fetch_all = lambda: fake_history(1243)
+    assert lp.run_auto(at(2026, 9, 27, 18), dry=False) == 0
+    bodies = [t for t, r in calls["posts"] if r is None]
+    assert len(bodies) == 1 and bodies[0].startswith("1244회 로또 흐름 정리")
+    lp.run_auto(at(2026, 9, 27, 19, 37), dry=False)  # 백업 실행은 아무것도 안 함
+    assert len(calls["posts"]) == 1
+
+    queue = json.loads(lp.QUEUE.read_text(encoding="utf-8"))
+    entry = queue[-1]
+    assert entry["id"] == "picks-1244-stats" and entry["reply_mode"] == "combo"
+    now = datetime.datetime(2026, 9, 27, 12, tzinfo=datetime.timezone.utc)
+    assert auto_reply.targets(queue, now) == [entry]
+
+    # 댓글: 지역 없는 것 / 지역 있는 것 / 내 답글에 단 것 / 내 답글
+    post = entry["post_id"]
+    items = [
+        {"id": "c1", "username": "kim", "text": "저도 부탁해요!", "replied_to": {"id": post}},
+        {"id": "c2", "username": "lee", "text": "노원구요", "replied_to": {"id": post}},
+        {"id": "r1", "username": "gzclab", "text": "...", "replied_to": {"id": "c9"}},
+        {"id": "c3", "username": "park", "text": "고마워요", "replied_to": {"id": "r1"}},
+    ]
+    sent = []
+    auto_reply.conversation = lambda media_id, token: items
+    auto_reply.send = lambda text, reply_to: sent.append((reply_to, text))
+    publish.TOKEN = "fake"  # 실제 실행에선 __main__이 넣는다
+    orig = auto_reply.HERE
+    auto_reply.HERE = lp.QUEUE.parent
+    try:
+        auto_reply.main()
+    finally:
+        auto_reply.HERE = orig
+    by = dict(sent)
+    draw = g.upcoming_draw_no()  # auto_reply는 실행 시각의 회차로 뽑는다
+    assert by["c1"].startswith(f"kim아 {draw}회 네 조합 뽑아왔어!")
+    assert g.fmt(g.store_game("user:kim", draw)) in by["c1"]
+    assert "노원구 1등 많이 나온 집" in by["c2"] and f"{draw}회 번호" in by["c2"]
+    assert "c3" not in by  # 내 답글에 달린 감사 댓글엔 또 답하지 않는다
+
+
 def test_rank_of():
     nums, bonus = [1, 2, 3, 4, 5, 6], 7
     assert lp.rank_of([1, 2, 3, 4, 5, 6], nums, bonus) == 1

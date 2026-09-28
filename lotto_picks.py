@@ -10,6 +10,7 @@ published로 기록해서 collect_insights와 auto_reply가 그대로 집어가�
 실행: python lotto_picks.py auto            (cron이 부르는 것. 지금 시각에 맞는 일을 한다)
       python lotto_picks.py daily [--dry]   (오늘 번호 글)
       python lotto_picks.py result [--dry]  (직전 회차 채점)
+      python lotto_picks.py stats [--dry]   (다음 회차 흐름 정리. 일요일 18시)
       --now 2026-10-05T17:07:00+09:00      (시각 지정, 점검용)
       --draw 1244                           (result 회차 지정)
 """
@@ -23,6 +24,7 @@ import urllib.error
 import urllib.request
 
 import lotto_gen as g
+import lotto_stats
 import publish
 
 sys.stdout.reconfigure(encoding="utf-8")  # 윈도우 콘솔(cp949)에서 한글·기호 출력 깨짐 방지
@@ -71,12 +73,14 @@ def utc_iso():
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
 
-def record_in_queue(entry_id, text, post_id, draw_no):
+def record_in_queue(entry_id, text, post_id, draw_no, reply_mode=None):
     """collect_insights(조회수 수집)와 auto_reply(댓글 답글)가 이 글을 보게 한다."""
     queue = load(QUEUE, [])
     if any(p["id"] == entry_id for p in queue):
         return
+    extra = {"reply_mode": reply_mode} if reply_mode else {}
     queue.append({
+        **extra,
         "id": entry_id,
         "status": "published",
         "slot": "picks",
@@ -371,6 +375,44 @@ def run_result(now, dry, draw_no=None):
     return 0
 
 
+STATS_HOUR = 18  # 일요일 18시 이후 흐름 정리 글
+STATS_GIVE_UP_HOUR = 20  # 이때도 지난 회차 번호가 미러에 없으면 알린다
+
+
+def run_stats(now, dry):
+    """다음 회차 흐름 정리 글. 지난 회차까지의 실제 당첨번호로 매주 새로 계산한다."""
+    draw_no = g.upcoming_draw_no(now)
+    picks = load(PICKS, {})
+    if picks.get(str(draw_no), {}).get("stats", {}).get("post_id"):
+        print(f"{draw_no}회 흐름 글 이미 발행됨 — 아무것도 하지 않음")
+        return 0
+    draws = lotto_stats.fetch_all()
+    if draw_no - 1 not in draws:
+        print(f"{draw_no - 1}회 번호가 아직 미러에 없음", file=sys.stderr)
+        if not dry and kst(now).hour >= STATS_GIVE_UP_HOUR:
+            publish.telegram(f"❌ {draw_no - 1}회 번호가 미러에 없어 흐름 정리 글을 못 올렸습니다.")
+            return 1
+        return 0
+    text = lotto_stats.build_post(lotto_stats.analyze(draws, draw_no - 1))
+    if dry:
+        print(text)
+        print(f"--- {len(text)}자")
+        return 0
+    try:
+        post_id = publish.publish(text)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        publish.telegram(f"❌ {draw_no}회 흐름 정리 글 발행 실패\n{e}")
+        raise
+    picks = load(PICKS, {})  # 채점이 같은 실행에서 파일을 바꿨을 수 있다
+    picks.setdefault(str(draw_no), {"days": {}})["stats"] = {"post_id": post_id, "posted_at": utc_iso()}
+    save(PICKS, picks)
+    # reply_mode=combo: 지역 이름이 없어도 댓글마다 조합 1게임을 답으로 단다.
+    record_in_queue(f"picks-{draw_no}-stats", text, post_id, draw_no, reply_mode="combo")
+    publish.telegram(f"📈 {draw_no}회 흐름 정리 글 발행됨")
+    return 0
+
+
 def run_auto(now, dry):
     """cron 한 개로 돌린다. 월~토 낮엔 번호 글, 토 21시 이후~일요일엔 채점."""
     local = kst(now)
@@ -380,6 +422,8 @@ def run_auto(now, dry):
         code |= run_daily(now, dry)
     if (wd == 5 and local.hour >= 21) or wd == 6:
         code |= run_result(now, dry)
+    if wd == 6 and local.hour >= STATS_HOUR:
+        code |= run_stats(now, dry)
     return code
 
 
@@ -395,6 +439,8 @@ def main(argv):
         return run_daily(now, dry)
     if mode == "result":
         return run_result(now, dry, draw)
+    if mode == "stats":
+        return run_stats(now, dry)
     if mode == "auto":
         return run_auto(now, dry)
     print(__doc__)

@@ -87,6 +87,12 @@ def compose(kind, value, username, replies, followup_ok, draw_no=None):
     return None
 
 
+def compose_combo(username, draw_no):
+    """지역 없이 댓글만 단 사람 몫의 조합. 닉네임+회차로 뽑아서 같은 주엔 누가 다시 물어도 같다."""
+    nums = lotto_gen.fmt(lotto_gen.store_game(f"user:{username}", draw_no))
+    return f"{username}아 {draw_no}회 네 조합 뽑아왔어!\n{nums}\n\n닉네임으로 뽑은 거라 이번 주엔 다시 물어봐도 같은 번호야. 재미로만 봐줘"
+
+
 def pick(items, my_ids):
     """답할 댓글만 고른다. (항목, 되묻기 허용) 목록.
 
@@ -131,8 +137,9 @@ def targets(queue, now):
             continue
         if datetime.datetime.fromisoformat(p["published_at"]) < cut:
             continue
-        # 지역을 물어본 글만 대상이다. 잡담 유도 글은 기계가 답할 거리가 없다.
-        if "구 이름 남겨줘" in p["text"]:
+        # 지역을 물어본 글, 또는 "댓글 남기면 조합 드림" 글(reply_mode=combo)만 대상이다.
+        # 잡담 유도 글은 기계가 답할 거리가 없다.
+        if "구 이름 남겨줘" in p["text"] or p.get("reply_mode") == "combo":
             out.append(p)
     return out
 
@@ -176,6 +183,9 @@ def main():
                 break
             kind, value = match(item["text"], keys)
             msg = compose(kind, value, item["username"], replies, followup_ok, draw_no)
+            # 조합 글은 지역을 말하지 않은 댓글에도 답한다. 내 답글에 달린 댓글엔 또 답하지 않는다(무한 핑퐁 방지).
+            if not msg and post.get("reply_mode") == "combo" and followup_ok:
+                msg = compose_combo(item["username"], draw_no)
             if not msg:
                 continue
             try:
