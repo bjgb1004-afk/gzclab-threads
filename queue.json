@@ -104,10 +104,12 @@
   },
   {
     "id": "top5-경기-광주시",
-    "status": "pending",
+    "status": "published",
     "slot": "am",
     "text": "경기 광주시에서 로또 1등 제일 많이 나온 판매점 TOP5\n\n댓글에 구 이름 남겨줘. 1등 많이 나온 집 바로 뽑아서 답 달아줌.\n\n1. 흥부네대박났네 (역동) — 1등 11회\n2. 초월대박복권방 (초월읍) — 1등 7회\n3. 유가네 복권방 — 1등 4회\n4. 진우행운복권방 — 1등 4회\n5. 월드컵복권방 (경안동) — 1등 3회\n\n1위 11회, 2위 7회. 한 집이 확실히 앞서는데 따라붙는 집도 있음.",
-    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dtop5"
+    "link": "https://play.google.com/store/apps/details?id=com.gzc.lottomap&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dtop5",
+    "post_id": "18104487368243184",
+    "published_at": "2026-09-28T19:37:45+00:00"
   },
   {
     "id": "top5-경기-포천시",
