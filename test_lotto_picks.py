@@ -147,15 +147,15 @@ def test_partial_week_still_scores():
     assert "이번 주 5게임 채점" in text and "수 파스칼" in text
 
 
-def test_auto_reply_adds_this_weeks_number():
+def test_district_reply_has_no_generated_number():
+    """구 TOP3만 답한다. 1등 3~6회짜리 동네 이름으로 번호를 뽑아주던 줄은 뺐다."""
     replies = json.loads((HERE / "district_replies.json").read_text(encoding="utf-8"))
-    msg = auto_reply.compose("hit", "서울 노원구", "u1", replies, True, 1244)
-    assert msg.endswith("노원구 명당 기운으로 뽑은 1244회 번호: " + g.fmt(g.store_game("서울 노원구", 1244)))
+    msg = auto_reply.compose("hit", "서울 노원구", "u1", replies, True)
+    assert msg.startswith("u1아 노원구 1등 많이 나온 집 뽑아왔어!")
+    assert "명당 기운" not in msg and "회 번호" not in msg
     for key in replies:
-        m = auto_reply.compose("hit", key, "x" * 30, replies, True, 1244)
+        m = auto_reply.compose("hit", key, "x" * 30, replies, True)
         assert m is None or len(m) <= auto_reply.REPLY_LIMIT, key
-    # 회차를 안 넘기면 예전과 똑같다(기존 호출부 호환)
-    assert "명당 기운" not in auto_reply.compose("hit", "서울 노원구", "u1", replies, True)
 
 
 def fake_history(last):
@@ -170,9 +170,9 @@ def test_stats_post_is_facts_only_and_fits():
     stats = lotto_stats.analyze(draws, 1243)
     text = lotto_stats.build_post(stats)
     assert text.startswith("1244회 로또 흐름 정리")
-    assert "댓글 남기면 1244회 추천 조합" in text.split("\n")[1]
+    assert "1244회 조합 1게임" in text.split("\n")[1]
     assert len(text) <= lp.LIMIT
-    assert "확률이 같음" in text
+    assert "팔로우" in text
     # 가장 오래 쉰 번호는 실제로 그만큼 안 나왔어야 한다
     n, gap = stats["longest"]
     assert all(n not in draws[k] for k in range(1244 - gap, 1244))
@@ -218,7 +218,7 @@ def test_sunday_stats_post_and_combo_replies():
     draw = g.upcoming_draw_no()  # auto_reply는 실행 시각의 회차로 뽑는다
     assert by["c1"].startswith(f"kim아 {draw}회 네 조합 뽑아왔어!")
     assert g.fmt(g.store_game("user:kim", draw)) in by["c1"]
-    assert "노원구 1등 많이 나온 집" in by["c2"] and f"{draw}회 번호" in by["c2"]
+    assert "노원구 1등 많이 나온 집" in by["c2"] and f"{draw}회 번호" not in by["c2"]
     assert "c3" not in by  # 내 답글에 달린 감사 댓글엔 또 답하지 않는다
 
 

@@ -61,23 +61,18 @@ def match(text, keys):
     return None, None
 
 
-def compose(kind, value, username, replies, followup_ok, draw_no=None):
+def compose(kind, value, username, replies, followup_ok):
     """답글 본문. 답할 것이 없으면 None.
 
-    draw_no가 있으면 그 동네 이름으로 뽑은 이번 주 명당 번호 1게임을 붙인다
-    ("댓글에 구 이름 남기면 그 동네 명당 번호 뽑아줌"). 같은 주·같은 동네면 누구에게나 같은 번호.
+    예전에는 여기에 "그 동네 명당 기운으로 뽑은 번호" 한 줄을 붙였다. 시·군·구 1위가
+    1등 3~6회짜리인 동네가 대부분이라 그 숫자를 번호 근거로 쓰는 건 과장이어서 뺐다.
     """
     if kind == "hit":
         body = replies.get(value)
         if not body:  # 1위가 2회짜리라 굽는 단계에서 걸러진 구
             return None
         gu = value.split()[-1]
-        text = f"{username}아 {gu} 1등 많이 나온 집 뽑아왔어!\n\n{body}"
-        if draw_no:
-            extra = f"\n\n{gu} 명당 기운으로 뽑은 {draw_no}회 번호: {lotto_gen.fmt(lotto_gen.store_game(value, draw_no))}"
-            if len(text) + len(extra) <= REPLY_LIMIT:
-                text += extra
-        return text
+        return f"{username}아 {gu} 1등 많이 나온 집 뽑아왔어!\n\n{body}"
     if not followup_ok:
         return None
     if kind == "ambiguous":
@@ -90,7 +85,11 @@ def compose(kind, value, username, replies, followup_ok, draw_no=None):
 def compose_combo(username, draw_no):
     """지역 없이 댓글만 단 사람 몫의 조합. 닉네임+회차로 뽑아서 같은 주엔 누가 다시 물어도 같다."""
     nums = lotto_gen.fmt(lotto_gen.store_game(f"user:{username}", draw_no))
-    return f"{username}아 {draw_no}회 네 조합 뽑아왔어!\n{nums}\n\n닉네임으로 뽑은 거라 이번 주엔 다시 물어봐도 같은 번호야. 재미로만 봐줘"
+    return (
+        f"{username}아 {draw_no}회 네 조합 뽑아왔어!\n{nums}\n\n"
+        "닉네임으로 뽑은 거라 이번 주엔 다시 물어봐도 같은 번호야. "
+        "다음 주 일요일에도 올리니까 그때 또 와"
+    )
 
 
 def pick(items, my_ids):
@@ -182,7 +181,7 @@ def main():
             if sent >= RUN_CAP:
                 break
             kind, value = match(item["text"], keys)
-            msg = compose(kind, value, item["username"], replies, followup_ok, draw_no)
+            msg = compose(kind, value, item["username"], replies, followup_ok)
             # 조합 글은 지역을 말하지 않은 댓글에도 답한다. 내 답글에 달린 댓글엔 또 답하지 않는다(무한 핑퐁 방지).
             if not msg and post.get("reply_mode") == "combo" and followup_ok:
                 msg = compose_combo(item["username"], draw_no)

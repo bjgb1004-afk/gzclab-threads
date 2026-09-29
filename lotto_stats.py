@@ -19,8 +19,8 @@ import lotto_gen as g
 ALL = "https://raw.githubusercontent.com/smok95/lotto/master/results/all.json"
 
 # auto_reply가 이 글의 댓글에 조합을 단다. 접힘 앞(둘째 줄)에 둔다.
-ASK = "댓글 남기면 {draw}회 추천 조합 1게임 바로 뽑아서 답으로 달아줌."
-FOOT = "통계는 지난 기록일 뿐, 다음 회차는 어떤 번호든 확률이 같음. 도움 됐으면 리포스트로 공유 부탁"
+ASK = "댓글 남기면 네 닉네임으로 {draw}회 조합 1게임 뽑아서 답 달아줌."
+FOOT = "이 정리 매주 일요일 저녁에 올림. 다음 주도 볼 사람은 팔로우, 도움 됐으면 리포스트."
 LIMIT = 500
 RECENT = 10  # "최근" 기준 회차 수
 CARRY_WINDOW = 100  # 이월 비율을 보는 회차 수

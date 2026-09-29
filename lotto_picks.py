@@ -41,15 +41,29 @@ LIMIT = 500  # Threads 본문 글자 제한
 
 # auto_reply.targets()가 "구 이름 남겨줘"가 든 글만 대상으로 잡는다. 빠지면 댓글에 답이 안 달린다.
 # 접힘 뒤로 밀리면 안 보이므로(2026-09-26 참여 0 원인) 둘째 줄에 둔다.
-ASK = "댓글에 구 이름 남겨줘. 그 동네 명당 번호 바로 뽑아서 답으로 달아줌."
-assert "구 이름 남겨줘" in ASK, "auto_reply가 대상에서 놓친다"
-DISCLAIMER = "재미로 보는 번호임. 어떤 번호든 당첨 확률은 같고 당첨을 보장하지 않음. 19세 이상 구매 가능."
-
-LINK = (
-    "https://play.google.com/store/apps/details?id=com.gzc.lottomap"
-    "&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dpicks"
+# 예전 문구는 "그 동네 명당 번호 뽑아준다"였다. 시·군·구 1위가 1등 3~6회짜리인 동네가
+# 대부분이라(2026-09-28 전국 집계) 그걸 근거로 번호를 만들어주는 건 과장이다. 약속도
+# 빼고 auto_reply의 번호 한 줄도 뺐다. 실제로 가진 데이터(그 동네 TOP3)만 약속한다.
+# 매일 같은 두 번째 줄이 7일 내내 반복되면 그게 제일 큰 봇 티다. 요일마다 돌려 쓴다.
+ASKS = (
+    "댓글에 구 이름 남겨줘. 그 동네 1등 많이 나온 집 바로 답으로 달아줌.",
+    "우리 동네 명당 궁금하면 댓글에 구 이름 남겨줘. 바로 답 달아줌.",
+    "댓글에 구 이름 남겨줘. 그 동네에서 1등 제일 많이 터진 집 찾아서 답 감.",
 )
-LINK_LEAD = "이 번호 산 근처 명당은 앱 지도에서 바로 찾을 수 있음:"
+assert all("구 이름 남겨줘" in a for a in ASKS), "auto_reply가 대상에서 놓친다"
+
+# 맨 끝 한 줄. 요일마다 돌려 써서 같은 문구가 매일 반복되지 않게 한다.
+FOLLOWS = (
+    "토요일 밤에 채점 결과 올라옴. 놓치기 싫으면 팔로우.",
+    "누가 제일 많이 맞히는지 보려면 팔로우해두면 됨.",
+    "매일 이 시간에 올림. 팔로우하면 안 찾아와도 뜸.",
+    "지난주 순위는 토요일 글에 다 있음. 이어서 볼 사람은 팔로우.",
+)
+
+# Play 링크를 직접 달면 미리보기에 구글플레이 기본 아이콘이 뜬다. 랜딩을 거치면
+# 복권명당 아이콘이 뜨고 ?c= 값이 Play Console referrer로 넘어간다.
+LINK = "https://gzclab.com/lottomap/?c=picks"
+LINK_LEAD = "번호 사러 갈 때 근처에 1등 많이 나온 집 있는지는 여기서 보면 됨:"
 
 # 당첨번호. 앱(scripts/ingest/fetchDrawHistory.ts)도 이 미러를 쓴다. 동행복권 옛 API는 막혔다.
 MIRROR = "https://raw.githubusercontent.com/smok95/lotto/master/results/{}.json"
@@ -123,14 +137,14 @@ def build_genius_post(draw_no, day):
     games = g.genius_games(genius["id"], draw_no)
     lines = [
         f"[{draw_no}회] {DAY_KO[day]}요일의 천재: {genius['name']}",
-        ASK,
+        ASKS[DAYS.index(day) % len(ASKS)],
         "",
         genius["how"],
         *[f"{LETTERS[i]}  {g.fmt(game)}" for i, game in enumerate(games)],
         "",
-        "월~금 매일 천재 1명, 토요일엔 명당 번호. 토요일 밤에 누가 제일 많이 맞혔는지 채점함.",
+        "월~금 천재 한 명씩, 토요일은 명당. 토요일 밤에 그 주 30게임 전부 채점해서 순위 올림.",
         "",
-        DISCLAIMER,
+        FOLLOWS[DAYS.index(day) % len(FOLLOWS)],
     ]
     return "\n".join(lines), games, {"kind": "genius", "genius": genius["id"]}
 
@@ -146,14 +160,14 @@ def build_store_post(draw_no):
         rows.append(f"{LETTERS[i]}  {g.fmt(game)}\n    {s['name']} ({s['district']}, 1등 {s['wins']}회)")
     lines = [
         f"[{draw_no}회] 토요일은 명당 번호",
-        ASK,
+        ASKS[draw_no % len(ASKS)],
         "",
-        "전국 1등 명당 5곳 이름으로 하나씩 뽑은 5게임",
+        f"1등 {STORE_MIN_WINS}회 이상 터진 명당 5곳, 그 집 이름으로 하나씩 뽑은 5게임",
         *rows,
         "",
         "오늘 20시 판매 마감. 추첨 끝나면 이번 주 30게임 채점해서 올림.",
         "",
-        DISCLAIMER,
+        "월~금 천재 5명 vs 오늘 명당. 결과 보려면 팔로우.",
     ]
     meta = {"kind": "store", "stores": [s["name"] for s in stores]}
     return "\n".join(lines), games, meta
@@ -220,14 +234,14 @@ def build_result_post(draw_no, days, numbers, bonus, table, weeks):
     winners = weekly_winners(days)
     lines = [
         f"[{draw_no}회 결과] {g.fmt(numbers)} + 보너스 {bonus:02d}",
-        ASK,
+        ASKS[(draw_no + 1) % len(ASKS)],
         "",
         f"이번 주 {n_games}게임 채점",
         *[f"{DAY_KO[day]} {contestant(d)}  {summary(d['score'])}" for day, d in days.items()],
         "",
         f"이번 주 1위: {' · '.join(winners)}" + (" (공동)" if len(winners) > 1 else ""),
         "누적 승수: " + " · ".join(f"{name} {n}" for name, n in table),
-        f"기록 {weeks}주째. 월요일에 아르키메데스부터 다시 시작.",
+        f"기록 {weeks}주째. 월요일에 아르키메데스부터 다시 시작함. 이어서 볼 사람은 팔로우.",
     ]
     text = "\n".join(lines)
     assert len(text) <= LIMIT, f"결과 글 {len(text)}자 — {LIMIT}자 초과"

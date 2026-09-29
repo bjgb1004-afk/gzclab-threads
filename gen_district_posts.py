@@ -11,10 +11,10 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")  # 윈도우 콘솔(cp949)에서 '—' 출력 시 죽는 것 방지
 
 HERE = pathlib.Path(__file__).parent
-# referrer 값은 Play Console 유입 리포트에 그대로 잡힌다. 이게 없으면 어느 글이
-# 설치로 이어졌는지 영영 알 수 없다.
-APP = ("https://play.google.com/store/apps/details?id=com.gzc.lottomap"
-       "&referrer=utm_source%3Dthreads%26utm_medium%3Dreply%26utm_campaign%3Dtop5")
+# Play 링크를 직접 달면 스레드 미리보기에 구글플레이 기본 아이콘이 뜬다(og:image를
+# 구글이 정한다). 우리 랜딩을 거치면 복권명당 아이콘이 뜨고, ?c= 값은 랜딩이
+# referrer=utm_campaign으로 바꿔 Play Console 유입 리포트까지 그대로 넘긴다.
+APP = "https://gzclab.com/lottomap/?c=top5"
 LIMIT = 500  # Threads 본문 글자 제한
 
 
@@ -58,11 +58,19 @@ def hook(top):
 # 세 문장 모두 "구 이름 남겨줘"를 포함해야 한다. auto_reply.targets()가 그 문구로
 # 대상 글을 고르므로, 빠진 문장이 나가면 그 글은 댓글이 와도 자동답글이 안 된다.
 OPENERS = (
-    "궁금한 동네 있으면 댓글에 구 이름 남겨줘. 그 동네 TOP3 바로 답으로 달아줌.",
-    "댓글에 구 이름 남겨줘. 1등 많이 나온 집 바로 뽑아서 답 달아줌.",
-    "우리 동네도 보고 싶으면 댓글에 구 이름 남겨줘. 기다릴 필요 없이 바로 답 감.",
+    "여기 없는 동네는 댓글에 구 이름 남겨줘. 바로 찾아서 답 달아줌.",
+    "댓글에 구 이름 남겨줘. 전국 다 갖고 있어서 어디 말해도 답 감.",
+    "우리 동네 어딘지 궁금하면 댓글에 구 이름 남겨줘. 기다릴 필요 없음.",
 )
 assert all("구 이름 남겨줘" in o for o in OPENERS), "auto_reply가 대상에서 놓친다"
+
+# 맨 끝 한 줄. 같은 문구를 매일 쓰면 그 자체가 봇 티라 돌려 쓴다. 팔로우를 부탁하는
+# 대신 "다음 편이 있다"는 사실을 말한다 — 시리즈가 팔로우 이유고, 부탁은 이유가 아니다.
+FOLLOWS = (
+    "전국 시·군·구 하나씩 다 올리는 중임. 우리 동네 순서 놓치기 싫으면 팔로우.",
+    "다음은 어느 동네 올릴지 댓글 보고 정함. 팔로우해두고 찜해놔.",
+    "이런 거 매일 아침 한 동네씩 올림. 팔로우하면 안 찾아와도 뜸.",
+)
 
 
 # 시도를 안 붙이면 헷갈리는 이름 (districts.json에서 2개 시도 이상에 있는 이름 + 광주광역시와 겹치는 광주시)
@@ -87,7 +95,7 @@ def build(district, stores, index):
     for i, s in enumerate(stores, 1):
         spot = f" ({where(s)})" if where(s) else ""
         lines.append(f"{i}. {name(s)}{spot} — 1등 {s['first']}회")
-    lines += ["", hook(stores)]
+    lines += ["", hook(stores), "", FOLLOWS[index % len(FOLLOWS)]]
     text = "\n".join(lines)
     assert len(text) <= LIMIT, f"{district} {len(text)}자 초과"
     post = {
