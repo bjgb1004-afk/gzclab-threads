@@ -109,8 +109,12 @@ def pick(items, my_ids):
     return out
 
 
-DAILY_CAP = 50   # Threads 24시간 250건 중 발행분을 빼도 244건 여유. 폭주가 발행을 죽이지 않게 한다
-RUN_CAP = 10     # 한 번 실행에 10건. 밀려도 10분 뒤 이어서 답한다
+DAILY_CAP = 50   # 글 하나당. 한 글이 터져도 그 글만 50건에서 멈춘다
+# 계정 전체 상한. DAILY_CAP만 있으면 7일 창에 든 글 10개 × 50건 = 500건까지 갈 수 있고,
+# 그건 Threads의 24시간 250건을 넘겨 그날 본문 발행까지 같이 죽는다. 발행(본문·링크답글)이
+# 하루 10건 안팎이므로 답글은 150건에서 끊고 90건을 여유로 남긴다.
+ACCOUNT_DAILY_CAP = 150
+RUN_CAP = 10     # 한 번 실행에 10건. 밀려도 5분 뒤 이어서 답한다
 WINDOW_DAYS = 7  # 이보다 오래된 글의 댓글은 뒤늦게 답해도 의미 없다
 
 
@@ -157,6 +161,7 @@ def main():
     draw_no = lotto_gen.upcoming_draw_no(now)
 
     sent = 0
+    today_total = 0  # 오늘 내가 단 답글 수. 대상 글들의 conversation을 세어 알아낸다(상태 파일 없음)
     for post in targets(queue, now):
         if sent >= RUN_CAP:
             break
@@ -173,8 +178,13 @@ def main():
             1 for i in items
             if i["username"] == ME and i.get("timestamp", "").startswith(today)
         )
-        if today_mine >= DAILY_CAP:
-            telegram(f"⚠️ 자동 답글 하루 상한({DAILY_CAP}건) 도달. 남은 댓글은 내일 답합니다.")
+        today_total += today_mine
+        if today_mine >= DAILY_CAP or today_total >= ACCOUNT_DAILY_CAP:
+            # 상한에 걸린 뒤로는 5분마다 같은 알림이 오게 된다. 이번 실행에서 실제로 답을
+            # 단 경우에만, 즉 상한을 넘은 그 실행에서만 알린다.
+            if sent:
+                cap = DAILY_CAP if today_mine >= DAILY_CAP else ACCOUNT_DAILY_CAP
+                telegram(f"⚠️ 자동 답글 하루 상한({cap}건) 도달. 남은 댓글은 내일 답합니다.")
             break
 
         for item, followup_ok in pick(items, my_ids):

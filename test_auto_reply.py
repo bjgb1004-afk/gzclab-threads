@@ -141,4 +141,26 @@ auto_reply.conversation = lambda media_id, token: (
 assert auto_reply.main() == 0
 assert posted == [], "상한에 걸리면 답글을 달지 않는다"
 
+# 계정 전체 상한: 글 하나하나는 DAILY_CAP 아래여도, 다 합쳐 ACCOUNT_DAILY_CAP을 넘으면 멈춘다.
+# 여기가 없으면 7일 창의 글 10개 × 50건 = 500건까지 가서 Threads 24시간 250건을 넘긴다.
+PER_POST = auto_reply.DAILY_CAP - 1
+POSTS = (auto_reply.ACCOUNT_DAILY_CAP // PER_POST) + 1
+(tmp / "queue.json").write_text(_json.dumps([
+    {"id": f"top5-{i}", "status": "published", "post_id": f"m{i}",
+     "text": "...댓글에 구 이름 남겨줘.",
+     "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+    for i in range(POSTS)
+]), encoding="utf-8")
+auto_reply.conversation = lambda media_id, token: (
+    [{"id": f"{media_id}-mine{i}", "username": "gzclab", "text": "x",
+      "replied_to": {"id": media_id}, "timestamp": TODAY} for i in range(PER_POST)]
+    + [{"id": f"{media_id}-c", "username": "u9", "text": "노원구",
+        "replied_to": {"id": media_id}, "timestamp": TODAY}]
+)
+posted.clear()
+assert auto_reply.main() == 0
+# 누적이 상한을 넘는 순간 멈춘다 — 글 개수만큼 다 답하지 않는다.
+assert 0 < len(posted) < POSTS, len(posted)
+assert len(posted) == auto_reply.ACCOUNT_DAILY_CAP // PER_POST, len(posted)
+
 print("ok")
