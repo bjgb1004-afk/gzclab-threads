@@ -1,0 +1,61 @@
+name: Tick
+
+# 발행·번호글·자동답글·인사이트를 한 워크플로가 상시 루프로 돌린다.
+#
+# 왜: Actions의 schedule이 이 저장소에서 심하게 씹힌다. */10 크론이 하루 2~7번만 떴고
+# (9/25~9/30 실측), 그 탓에 번호 글이 17:07 예정인데 23:16~01:43에 나갔고 자동답글은
+# 댓글의 15%만 답했다. 크론 횟수를 늘려도 같은 비율로 씹히므로, 한 번 뜬 실행이 오래
+# 돌게 한다. 저장소가 public이라 Actions 분은 무제한이다.
+#
+# 이 실행이 끝나면 스스로 다음 실행을 띄운다(아래 마지막 스텝). 크론은 그 사슬이
+# 끊겼을 때를 위한 백업이다.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 두 개가 동시에 돌면 같은 글이 두 번 나간다. 겹치면 뒤엣것이 앞엣것을 기다린다.
+concurrency:
+  group: threads-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    # 잡 상한은 6시간. 남는 15분은 마지막 커밋과 다음 실행 예약에 쓴다.
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Loop
+        env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          END=$(( $(date +%s) + 20700 ))   # 5시간 45분
+          while [ "$(date +%s)" -lt "$END" ]; do
+            git pull --rebase --autostash -q || true
+            python tick.py || true
+            git add queue.json picks.json
+            # 발행·답글 기록이 사라지면 다음 틱이 같은 글을 또 올린다. 커밋은 매 틱마다.
+            if ! git diff --cached --quiet; then
+              git commit -q -m "chore: tick"
+              git pull --rebase --autostash -q && git push -q || true
+            fi
+            sleep 300
+          done
+
+      # 다음 실행을 직접 띄운다. GITHUB_TOKEN으로는 워크플로가 트리거되지 않으므로 PAT를 쓴다.
+      # PAT가 없으면 조용히 넘어가고 30분 크론이 이어받는다.
+      - name: Chain next run
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          [ -n "$GH_TOKEN" ] && gh workflow run tick.yml --repo "$GITHUB_REPOSITORY" || true

@@ -52,11 +52,15 @@ ASKS = (
 )
 assert all("구 이름 남겨줘" in a for a in ASKS), "auto_reply가 대상에서 놓친다"
 
-# 맨 끝 한 줄. 요일마다 돌려 써서 같은 문구가 매일 반복되지 않게 한다.
+# 팔로우 유도. 지금까지 팔로워 235명 중 200명이 이 문구가 제목 바로 아래 있던 글
+# 하나(9/28 월, 도달 32,012)에서 왔다. 전환 0.6%. 계정에서 유일하게 검증된 유입 경로라
+# 맨 끝(접힘 뒤)이 아니라 제목 바로 아래에 둔다. 요일마다 돌려 쓴다 — mon이 0번이고
+# 도달이 제일 큰 날이라, 실제로 200명을 데려온 "매일 번호가 온다" 약속을 0번에 둔다.
 FOLLOWS = (
+    "팔로우하면 수학천재들 번호가 매일 뜸.",
     "토요일 밤에 채점 결과 올라옴. 놓치기 싫으면 팔로우.",
     "누가 제일 많이 맞히는지 보려면 팔로우해두면 됨.",
-    "매일 이 시간에 올림. 팔로우하면 안 찾아와도 뜸.",
+    "매일 저녁 5시에 올림. 팔로우하면 안 찾아와도 뜸.",
     "지난주 순위는 토요일 글에 다 있음. 이어서 볼 사람은 팔로우.",
 )
 
@@ -70,6 +74,9 @@ MIRROR = "https://raw.githubusercontent.com/smok95/lotto/master/results/{}.json"
 
 STORE_MIN_WINS = 10  # 토요일 명당 후보: 그 구 1위이면서 1등 10회 이상(47곳, 약 9주에 한 바퀴)
 SAT_CUTOFF_HOUR = 20  # 토요일 20시 판매 마감. 그 뒤에 명당 번호를 올리면 살 수가 없다
+# 번호 글 KST 발행 시각. 예전엔 cron이 이 시각을 정했지만 지금은 tick.py 루프가 5분마다
+# 물어보므로, 시각 판단이 여기 있어야 한다. 없으면 자정 직후 첫 틱에 그날 글이 나간다.
+PICK_TIME = (17, 7)
 RESULT_GIVE_UP = (6, 11)  # (일요일, 11시) KST 이후에도 당첨번호가 없으면 알린다
 
 
@@ -137,14 +144,13 @@ def build_genius_post(draw_no, day):
     games = g.genius_games(genius["id"], draw_no)
     lines = [
         f"[{draw_no}회] {DAY_KO[day]}요일의 천재: {genius['name']}",
+        FOLLOWS[DAYS.index(day) % len(FOLLOWS)],
         ASKS[DAYS.index(day) % len(ASKS)],
         "",
         genius["how"],
         *[f"{LETTERS[i]}  {g.fmt(game)}" for i, game in enumerate(games)],
         "",
         "월~금 천재 한 명씩, 토요일은 명당. 토요일 밤에 그 주 30게임 전부 채점해서 순위 올림.",
-        "",
-        FOLLOWS[DAYS.index(day) % len(FOLLOWS)],
     ]
     return "\n".join(lines), games, {"kind": "genius", "genius": genius["id"]}
 
@@ -160,14 +166,13 @@ def build_store_post(draw_no):
         rows.append(f"{LETTERS[i]}  {g.fmt(game)}\n    {s['name']} ({s['district']}, 1등 {s['wins']}회)")
     lines = [
         f"[{draw_no}회] 토요일은 명당 번호",
+        "월~금 천재 5명 vs 오늘 명당. 결과 보려면 팔로우.",
         ASKS[draw_no % len(ASKS)],
         "",
         f"1등 {STORE_MIN_WINS}회 이상 터진 명당 5곳, 그 집 이름으로 하나씩 뽑은 5게임",
         *rows,
         "",
         "오늘 20시 판매 마감. 추첨 끝나면 이번 주 30게임 채점해서 올림.",
-        "",
-        "월~금 천재 5명 vs 오늘 명당. 결과 보려면 팔로우.",
     ]
     meta = {"kind": "store", "stores": [s["name"] for s in stores]}
     return "\n".join(lines), games, meta
@@ -312,12 +317,14 @@ def run_daily(now, dry):
     save(PICKS, picks)
     record_in_queue(f"picks-{draw_no}-{day}", text, post_id, draw_no)
 
-    if day == "sat":
-        try:
-            publish.publish(f"{LINK_LEAD}\n{LINK}", reply_to=post_id)
-        except Exception as e:
-            print(e, file=sys.stderr)
-            publish.telegram(f"⚠️ 명당 번호 글은 올랐는데 링크 답글 실패\n{e}")
+    # 예전엔 토요일에만 링크를 달았다. 그 결과 도달 1·3위 글(9/28 월 32,012, 9/30 수
+    # 12,987)에 클릭할 링크가 하나도 없었다. 링크 답글이 도달을 죽이지 않는 건
+    # 9/28 김포 글(22,158, 링크 답글 있음)로 확인됐다. 매일 단다.
+    try:
+        publish.publish(f"{LINK_LEAD}\n{LINK}", reply_to=post_id)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        publish.telegram(f"⚠️ 번호 글은 올랐는데 링크 답글 실패\n{e}")
 
     publish.telegram(f"✅ {draw_no}회 {DAY_KO[day]}요일 번호 글 발행됨\nhttps://www.threads.net/@gzclab")
     return 0
@@ -432,7 +439,7 @@ def run_auto(now, dry):
     local = kst(now)
     wd = local.weekday()
     code = 0
-    if wd <= 4 or (wd == 5 and local.hour < SAT_CUTOFF_HOUR):
+    if (local.hour, local.minute) >= PICK_TIME and (wd <= 4 or (wd == 5 and local.hour < SAT_CUTOFF_HOUR)):
         code |= run_daily(now, dry)
     if (wd == 5 and local.hour >= 21) or wd == 6:
         code |= run_result(now, dry)

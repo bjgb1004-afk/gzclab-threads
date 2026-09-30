@@ -76,9 +76,9 @@ def test_full_week():
     assert "월요일의 천재: 아르키메데스" in bodies[0]
     assert "금요일의 천재: 가우스" in bodies[4]
     assert "토요일은 명당 번호" in bodies[5]
-    # 토요일만 앱 링크 답글
+    # 번호 글마다 앱 링크 답글 (월~토 6일)
     link_replies = [t for t, reply in calls["posts"] if reply and lp.LINK in t]
-    assert len(link_replies) == 1
+    assert len(link_replies) == 6, len(link_replies)
 
     # 같은 날 백업 cron이 또 돌아도 중복 발행하지 않는다.
     before = len(calls["posts"])
