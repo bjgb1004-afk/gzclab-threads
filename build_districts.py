@@ -17,6 +17,15 @@ HEADERS = {
 OUT = pathlib.Path(__file__).with_name("districts.json")
 METRO = ("서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종")
 
+# 원본(lottorich) 지번이 틀린 집. 도로명과 당첨 횟수는 맞는데 지번만 엉뚱한 동네를 가리킨다.
+# where()가 이 지번에서 동 이름을 뽑아 글에 찍으므로 그대로 두면 틀린 동이 나간다.
+# districts.json은 .gitignore라 거기만 고치면 재수집 때 되돌아간다 — 고침은 여기 둔다.
+ADDRESS_FIXES = {
+    # 흥부네대박났네(1등 11회). 도로명 경충대로 763은 곤지암읍 구간이다(곤지암 675~732,
+    # 초월 963번길, 장지동 1786, 중대동 1977 순). 역동일 수 없다. 2026-10-01 유저 제보.
+    "경기 광주시 역동 27-28": "경기 광주시 곤지암읍 삼리 399-18",
+}
+
 
 def fetch(rank):
     req = urllib.request.Request(URL.format(rank), headers=HEADERS)
@@ -64,6 +73,7 @@ def main():
             if not is_real_store(e):
                 continue
             address = (e.get("sido") or "").strip()
+            address = ADDRESS_FIXES.get(address, address)
             district = district_of(address)
             if not district:
                 continue

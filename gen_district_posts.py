@@ -28,8 +28,14 @@ def where(store):
 
 def name(store):
     """원본 데이터에 괄호가 열린 채 잘린 상호가 83곳 있다('훼미리마트(대림중앙점').
-    그대로 올리면 글이 지저분해 보이니 괄호 앞까지만 쓴다."""
-    n = store["name"]
+    그대로 올리면 글이 지저분해 보이니 괄호 앞까지만 쓴다.
+
+    상호가 아예 없는 집도 있다(금천구 독산3동 가판 — 1등 5회로 그 구 1위다).
+    원본이 그 자리에 '상호없음'을 넣어두는데 그대로 내보내면 1위 칸에 '상호없음'이
+    찍힌다. 거르면 구 1위가 통째로 사라지니, 도로명 주소로 대신 부른다."""
+    n = (store["name"] or "").strip()
+    if not n or n == "상호없음":
+        return " ".join(store["road"].split()[2:]) or store["address"]
     return n[: n.rindex("(")].strip() if n.count("(") > n.count(")") else n
 
 
