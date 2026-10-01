@@ -34,13 +34,22 @@ def name(store):
     """원본 데이터에 괄호가 열린 채 잘린 상호가 83곳 있다('훼미리마트(대림중앙점').
     그대로 올리면 글이 지저분해 보이니 괄호 앞까지만 쓴다.
 
-    상호가 아예 없는 집도 있다(금천구 독산3동 가판 — 1등 5회로 그 구 1위다).
-    원본이 그 자리에 '상호없음'을 넣어두는데 그대로 내보내면 1위 칸에 '상호없음'이
-    찍힌다. 거르면 구 1위가 통째로 사라지니, 도로명 주소로 대신 부른다."""
+    상호가 아예 없는 집도 있다. 원본이 그 자리에 '상호없음'이나 '(없음'을 넣어두는데,
+    그대로 내보내면 1위 칸에 그 글자가 찍힌다. 거르면 구 1위가 통째로 사라지니
+    도로명 주소로 대신 부른다. 아는 집은 STORE_FIXES에서 진짜 상호로 바뀌어 들어오므로
+    여기까지 오는 건 아직 정체를 모르는 집뿐이다.
+
+    괄호 자르기를 먼저 하고 빈 값을 본다. 순서가 반대면 '(없음'처럼 여는 괄호로 시작하는
+    상호가 통째로 잘려 이름 칸이 빈 채로 나간다."""
     n = (store["name"] or "").strip()
+    if n.count("(") > n.count(")"):
+        n = n[: n.rindex("(")].strip()
     if not n or n == "상호없음":
-        return " ".join(store["road"].split()[2:]) or store["address"]
-    return n[: n.rindex("(")].strip() if n.count("(") > n.count(")") else n
+        # 시도/시군구 토큰이 2개인지 3개인지에 기대지 않는다('충북 청주시 상당구 무농정로 10-1').
+        tokens = (store["road"] or "").split()
+        start = next((i for i, t in enumerate(tokens) if t.endswith(("로", "길")) and not t[0].isdigit()), 2)
+        return " ".join(tokens[start:]) or store["address"]
+    return n
 
 
 def hook(top):
