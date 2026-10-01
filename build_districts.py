@@ -17,13 +17,22 @@ HEADERS = {
 OUT = pathlib.Path(__file__).with_name("districts.json")
 METRO = ("서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종")
 
-# 원본(lottorich) 지번이 틀린 집. 도로명과 당첨 횟수는 맞는데 지번만 엉뚱한 동네를 가리킨다.
-# where()가 이 지번에서 동 이름을 뽑아 글에 찍으므로 그대로 두면 틀린 동이 나간다.
-# districts.json은 .gitignore라 거기만 고치면 재수집 때 되돌아간다 — 고침은 여기 둔다.
-ADDRESS_FIXES = {
-    # 흥부네대박났네(1등 11회). 도로명 경충대로 763은 곤지암읍 구간이다(곤지암 675~732,
-    # 초월 963번길, 장지동 1786, 중대동 1977 순). 역동일 수 없다. 2026-10-01 유저 제보.
-    "경기 광주시 역동 27-28": "경기 광주시 곤지암읍 삼리 399-18",
+# 원본(lottorich)의 상호·주소가 틀린 집. 당첨 횟수는 맞는데 주소가 다른 동네를 가리키거나
+# 상호가 옛 이름으로 남아 있다. where()가 주소에서 동 이름을 뽑아 글에 찍으므로 그대로
+# 두면 틀린 동이 나간다. districts.json은 .gitignore라 거기만 고치면 재수집 때 되돌아간다
+# — 고침은 여기 둔다. 키는 원본 주소, 값은 덮어쓸 필드.
+#
+# 정정 근거는 복권명당(ruflo-starter)에서 가져온다. 그쪽은 동행복권 공식 API + 네이버 검색
+# + VWORLD 지오코딩으로 판매점을 검증하므로, 이 프로젝트가 따로 주소를 조사하면 안 된다.
+STORE_FIXES = {
+    # 2026-09-30 복권명당 감사(ruflo-starter 994ae34): lottorich의 '흥부네대박났네' 행 둘은
+    # (역동 27-28 / 경충대로 763) 네이버에 없고 공식 판매점 ID도 없는 쓰레기 레코드라 삭제됐다.
+    # 실제 가게는 '행복한사람들 (흥부네)'이고 주소는 초월읍 경충대로 1014 (기존 값이 2.7km 틀림).
+    "경기 광주시 역동 27-28": {
+        "name": "행복한사람들 (흥부네)",
+        "address": "경기 광주시 초월읍 경충대로 1014",
+        "road": "경기 광주시 초월읍 경충대로 1014",
+    },
 }
 
 
@@ -73,17 +82,18 @@ def main():
             if not is_real_store(e):
                 continue
             address = (e.get("sido") or "").strip()
-            address = ADDRESS_FIXES.get(address, address)
+            fix = STORE_FIXES.get(address, {})
+            address = fix.get("address", address)
             district = district_of(address)
             if not district:
                 continue
-            key = (clean_name(e["name"]), address)
+            key = (fix.get("name") or clean_name(e["name"]), address)
             s = stores.setdefault(
                 key,
                 {
-                    "name": clean_name(e["name"]),
+                    "name": fix.get("name") or clean_name(e["name"]),
                     "address": address,
-                    "road": (e.get("road_name") or "").strip(),
+                    "road": fix.get("road") or (e.get("road_name") or "").strip(),
                     "district": district,
                     "first": 0,
                     "second": 0,

@@ -20,6 +20,10 @@ LIMIT = 500  # Threads 본문 글자 제한
 
 def where(store):
     """주소에서 동 이름만 뽑는다. 못 뽑으면 빈 문자열."""
+    # 상호에 이미 괄호가 붙은 집('행복한사람들 (흥부네)')은 동을 또 붙이면
+    # '행복한사람들 (흥부네) (초월읍)'이 된다. 그런 집은 동을 생략한다.
+    if "(" in name(store):
+        return ""
     for part in store["address"].split()[2:4]:
         if part.endswith(("동", "읍", "면", "가")) and not part[0].isdigit():
             return part
