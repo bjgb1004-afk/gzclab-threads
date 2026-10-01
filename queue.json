@@ -771,7 +771,14 @@
     "slot": "night",
     "text": "1등 많이 나온 집 = 그냥 많이 파는 집.\n알면서도 굳이 찾아가는 게 사람이더라. 나도 그럼.",
     "post_id": "18184499242424575",
-    "published_at": "2026-09-30T09:36:01+00:00"
+    "published_at": "2026-09-30T09:36:01+00:00",
+    "insights": {
+      "views": 350,
+      "likes": 0,
+      "replies": 0,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "talk-night-04",
