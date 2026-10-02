@@ -13,3 +13,6 @@ _posts.json
 # replay.py가 smok95/lotto에서 받아 캐시하는 전 회차 당첨결과(약 1MB).
 # 실행할 때 없으면 다시 받으므로 커밋하지 않는다.
 draws_cache.json
+
+# 인스타 카드 미리보기. 발행용은 Actions가 따로 굽는다.
+preview/
