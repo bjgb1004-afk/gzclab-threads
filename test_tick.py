@@ -41,6 +41,11 @@ def test_slots():
         tick.due_slot_start(q("2026-09-30T21:30", prefix="picks"), at("2026-09-30T21:40"))
         is not None
     )
+    # band 글도 같다. 14:07에 나간 게 12:07 슬롯을 먹으면 그날 pm 글이 사라진다.
+    assert (
+        tick.due_slot_start(q("2026-09-30T14:07", prefix="band"), at("2026-09-30T14:30"))
+        is not None
+    )
 
 
 def test_weekly_draw():

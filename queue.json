@@ -1,5 +1,18 @@
 [
   {
+    "id": "appnum-1",
+    "status": "pending",
+    "slot": "pm",
+    "text": "여기 매일 올리는 천재 번호, 앱에서 뽑는 거랑 글자 하나 안 다름.\n회차랑 천재 정해지면 번호가 고정되게 짜놔서 나도 바꿔 못 뽑음.\n\n토요일에 30게임 전부 채점해서 올림."
+  },
+  {
+    "id": "qr-scan-1",
+    "status": "pending",
+    "slot": "night",
+    "link": "https://gzclab.com/lottomap/?c=scan",
+    "text": "로또 용지 번호 눈으로 대조하는 사람 아직 있나?\n난 QR 찍는 거 만들고 나서 대조 안 함.\n\n5등 지급 기한이 1년인 거 아는 사람 의외로 적더라."
+  },
+  {
     "id": "top5-경기-용인시-기흥구",
     "status": "published",
     "slot": "am",

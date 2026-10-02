@@ -1,0 +1,28 @@
+[
+  {
+    "id": "replay-1",
+    "status": "pending",
+    "slot": "night",
+    "link": "https://gzclab.com/lottomap/?c=replay",
+    "text": "내 번호 1회차부터 전부 돌려봤더니 23번 당첨돼 있었음.\n근데 받은 건 한 푼도 없음. 다 지나간 회차라서.\n\n번호가 좋아서가 아님. 회차가 982번이라서임."
+  },
+  {
+    "id": "replay-2",
+    "status": "pending",
+    "slot": "night",
+    "text": "같은 번호로만 몇 년씩 사는 사람 있나?\n그 번호 전 회차에 돌려보면 평균 23번은 등수에 들어 있음.\n\n문제는 5등 5천원을 확인도 안 하고 버린다는 거. 나도 그랬음."
+  },
+  {
+    "id": "genius-same-1",
+    "status": "pending",
+    "slot": "pm",
+    "text": "여기 매일 올리는 천재 번호, 앱에서 뽑는 거랑 글자 하나 안 다름.\n회차랑 천재 정해지면 번호가 고정되게 짜놔서 나도 바꿔 못 뽑음.\n\n토요일에 30게임 전부 채점해서 올림."
+  },
+  {
+    "id": "qr-scan-1",
+    "status": "pending",
+    "slot": "night",
+    "link": "https://gzclab.com/lottomap/?c=scan",
+    "text": "로또 용지 번호 눈으로 대조하는 사람 아직 있나?\n난 QR 찍는 거 만들고 나서 대조 안 함.\n\n5등 지급 기한이 1년인 거 아는 사람 의외로 적더라."
+  }
+]

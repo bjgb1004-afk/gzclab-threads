@@ -6,6 +6,7 @@
 
 import datetime
 import json
+import re
 import os
 import pathlib
 import sys
@@ -15,6 +16,7 @@ import urllib.request
 
 import lotto_gen
 import publish
+import replay as rp
 from publish import API, telegram
 
 HERE = pathlib.Path(__file__).parent
@@ -92,6 +94,44 @@ def compose_combo(username, draw_no):
     )
 
 
+# 댓글에서 번호 6개를 읽는다. "3 11 24 32 37 45", "3,11,24,32,37,45", "03-11-24..." 다 받는다.
+# 45를 넘는 수와 0은 번호가 아니다. 7개 이상 적어놨으면 어느 6개인지 알 수 없으니 답하지 않는다.
+_NUM = re.compile(r"\d{1,2}")
+
+
+def parse_numbers(text):
+    """번호 6개면 정렬해서 반환, 아니면 None."""
+    found = [int(x) for x in _NUM.findall(text)]
+    nums = [n for n in found if 1 <= n <= 45]
+    # 범위 밖 숫자가 섞여 있으면 번호를 적은 게 아닐 가능성이 높다(회차·금액 등).
+    if len(nums) != len(found):
+        return None
+    if len(nums) != 6 or len(set(nums)) != 6:
+        return None
+    return sorted(nums)
+
+
+def compose_replay(username, nums, draws):
+    """그 사람 번호의 전 회차 성적. 예측이 아니라 지나간 사실만 쓴다."""
+    res = rp.replay(nums, draws)
+    head = f"{username}아 {lotto_gen.fmt(nums)} 돌려봤어!\n\n"
+    if not res["hits"]:
+        return head + (
+            f"{res['draws']}회 동안 한 번도 등수에 못 들었음. 이런 번호도 드물어.\n\n"
+            "지나간 회차 성적이라 다음 회차랑은 상관없는 거 알지?"
+        )
+    order = sorted(res["by_rank"])
+    detail = " · ".join(f"{r}등 {res['by_rank'][r]}번" for r in order)
+    tail = ""
+    if res["best"] <= 3:
+        tail = f"\n{res['best']}등은 {res['best_draw']}회였음."
+    return head + (
+        f"{res['draws']}회 중 {res['hits']}번 당첨됐었음.\n{detail}\n"
+        f"세후 다 합치면 {rp.won(res['net'])}.{tail}\n\n"
+        "지나간 회차 성적이라 다음 회차랑은 상관없는 거 알지?"
+    )
+
+
 def pick(items, my_ids):
     """답할 댓글만 고른다. (항목, 되묻기 허용) 목록.
 
@@ -116,6 +156,9 @@ DAILY_CAP = 50   # 글 하나당. 한 글이 터져도 그 글만 50건에서 �
 ACCOUNT_DAILY_CAP = 150
 RUN_CAP = 10     # 한 번 실행에 10건. 밀려도 5분 뒤 이어서 답한다
 WINDOW_DAYS = 7  # 이보다 오래된 글의 댓글은 뒤늦게 답해도 의미 없다
+# 번호 리플레이 글은 4시간만 답한다. 본문에 그렇게 써놨고, 한 글에 번호 댓글이 몰리면
+# 하루 상한(DAILY_CAP)을 이 글 하나가 다 먹어서 지역 답글이 멈춘다.
+REPLAY_WINDOW_HOURS = 4
 
 
 def conversation(media_id, token):
@@ -140,9 +183,14 @@ def targets(queue, now):
             continue
         if datetime.datetime.fromisoformat(p["published_at"]) < cut:
             continue
-        # 지역을 물어본 글, 또는 "댓글 남기면 조합 드림" 글(reply_mode=combo)만 대상이다.
+        # 지역을 물어본 글, "댓글 남기면 조합 드림" 글(combo), 번호 돌려주는 글(replay)이 대상이다.
         # 잡담 유도 글은 기계가 답할 거리가 없다.
-        if "구 이름 남겨줘" in p["text"] or p.get("reply_mode") == "combo":
+        if p.get("reply_mode") == "replay":
+            # 본문에 "4시간 지나면 답 못 달 수도 있음"이라고 써서 내보낸다. 그 말을 지킨다.
+            age = now - datetime.datetime.fromisoformat(p["published_at"])
+            if age <= datetime.timedelta(hours=REPLAY_WINDOW_HOURS):
+                out.append(p)
+        elif "구 이름 남겨줘" in p["text"] or p.get("reply_mode") == "combo":
             out.append(p)
     return out
 
@@ -161,6 +209,7 @@ def main():
     draw_no = lotto_gen.upcoming_draw_no(now)
 
     sent = 0
+    draws = None  # 번호 댓글이 올 때만 받는다(1MB)
     today_total = 0  # 오늘 내가 단 답글 수. 대상 글들의 conversation을 세어 알아낸다(상태 파일 없음)
     for post in targets(queue, now):
         if sent >= RUN_CAP:
@@ -190,8 +239,19 @@ def main():
         for item, followup_ok in pick(items, my_ids):
             if sent >= RUN_CAP:
                 break
-            kind, value = match(item["text"], keys)
-            msg = compose(kind, value, item["username"], replies, followup_ok)
+            msg = None
+            if post.get("reply_mode") == "replay":
+                nums = parse_numbers(item["text"])
+                if nums:
+                    # all.json은 1MB다. 번호 댓글이 실제로 왔을 때만 받는다.
+                    if draws is None:
+                        draws = rp.fetch_draws()
+                    msg = compose_replay(item["username"], nums, draws)
+                elif followup_ok:
+                    msg = f"{item['username']}아 번호 6개를 적어줘야 돌려볼 수 있어! 예) 3 11 24 32 37 45"
+            if msg is None:
+                kind, value = match(item["text"], keys)
+                msg = compose(kind, value, item["username"], replies, followup_ok)
             # 조합 글은 지역을 말하지 않은 댓글에도 답한다. 내 답글에 달린 댓글엔 또 답하지 않는다(무한 핑퐁 방지).
             if not msg and post.get("reply_mode") == "combo" and followup_ok:
                 msg = compose_combo(item["username"], draw_no)

@@ -15,6 +15,7 @@ import pathlib
 import sys
 
 import auto_reply
+import band_picks
 import collect_insights
 import gen_draw_post
 import lotto_picks
@@ -41,8 +42,8 @@ def due_slot_start(queue, now):
     h, m = passed[-1]
     start = local.replace(hour=h, minute=m, second=0, microsecond=0)
     for p in queue:
-        # picks 글은 제 시각(17:07)에 따로 나간다. 그게 슬롯 발행을 대신하면 안 된다.
-        if p["id"].startswith("picks-") or not p.get("published_at"):
+        # picks(17:07)·band(14:07) 글은 제 시각에 따로 나간다. 그게 슬롯 발행을 대신하면 안 된다.
+        if p["id"].startswith(("picks-", "band-")) or not p.get("published_at"):
             continue
         if datetime.datetime.fromisoformat(p["published_at"]) >= start:
             return None
@@ -81,6 +82,8 @@ def main():
     if weekly_draw_due(queue, now):
         step("draw", lambda: gen_draw_post.main([]))
     step("picks", lambda: lotto_picks.run_auto(now, dry=False))
+    # 매일 14:07 번호대 글. 하루 한 번만 나가고, 그 뒤 4시간은 번호 댓글에 답한다.
+    step("band", lambda: band_picks.run_auto(now, dry=False))
     step("reply", auto_reply.main)
     step("insights", collect_insights.main)
     return 0

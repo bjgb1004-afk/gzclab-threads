@@ -1,0 +1,28 @@
+[
+  {
+    "id": "promo-replay-howto",
+    "status": "pending",
+    "slot": "night",
+    "link": "https://gzclab.com/lottomap/?c=replay",
+    "text": "어제 올린 번호 돌려주기, 숫자가 생각보다 큼.\n\n아무 번호나 6개 넣어도 1243회 중 평균 29번은 당첨돼 있음. 대신 거의 다 5등이라 세후 합쳐야 20만원대.\n\n댓글에 번호 6개 적어봐. 돌려서 답 달아줌."
+  },
+  {
+    "id": "promo-tax",
+    "status": "pending",
+    "slot": "night",
+    "text": "당첨금 세금 계산까지 넣었음.\n\n5등 5천원이랑 4등 5만원은 세금 한 푼도 안 뗌. 20만원 이하는 비과세라서.\n그 위부터 22%, 3억 넘는 건 33%.\n\n그래서 '총 얼마 받았냐'를 세후로 적어줌."
+  },
+  {
+    "id": "promo-band-preview",
+    "status": "pending",
+    "slot": "pm",
+    "text": "다음 주 금요일 2시부터 새 글 하나 더 올림.\n\n최근 100회에서 어느 번호대가 많이 나왔는지 세서, 그 비중 그대로 5게임 뽑는 거.\n천재 번호랑은 방식이 아예 다름.\n\n추첨 전날이라 사러 가기 직전에 보면 됨."
+  },
+  {
+    "id": "promo-app-rename",
+    "status": "pending",
+    "slot": "night",
+    "link": "https://gzclab.com/lottomap/?c=scan",
+    "text": "앱 이름에 '당첨확인' 붙였음.\n\nQR로 용지 찍으면 바로 등수 뜨는 기능이 원래 있었는데, 검색하면 앱이 아예 안 나오고 있었더라.\n이름에 그 말이 없어서 그랬음.\n\n만들어놓고 안 알린 내 잘못임."
+  }
+]
