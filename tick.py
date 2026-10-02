@@ -18,6 +18,7 @@ import auto_reply
 import band_picks
 import collect_insights
 import gen_draw_post
+import gen_posts
 import lotto_picks
 import publish
 from publish import telegram
@@ -84,6 +85,9 @@ def main():
     step("picks", lambda: lotto_picks.run_auto(now, dry=False))
     # 매일 14:07 번호대 글. 하루 한 번만 나가고, 그 뒤 4시간은 번호 댓글에 답한다.
     step("band", lambda: band_picks.run_auto(now, dry=False))
+    # 큐가 마르면 지난 회차 데이터로 pm/night 글을 찍어 채운다. 손으로 쓴 글이 남아 있으면
+    # 아무것도 하지 않는다.
+    step("topup", lambda: gen_posts.top_up(now))
     step("reply", auto_reply.main)
     step("insights", collect_insights.main)
     return 0
