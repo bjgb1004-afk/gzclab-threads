@@ -77,7 +77,7 @@ public 저장소라 Actions 분은 무제한이다.
 | `TELEGRAM_BOT_TOKEN` | gzclab_bot 토큰 (`gzclab-web/.env`와 동일) |
 | `TELEGRAM_CHAT_ID` | 같은 파일의 chat id |
 | `IG_TOKEN` | 인스타 장기 토큰(60일). 없으면 인스타 단계만 조용히 건너뛰고 스레드는 그대로 돈다 |
-| `IG_USER_ID` | 같은 화면에 뜨는 인스타 계정 숫자 ID |
+| `IG_USER_ID` | **선택.** 없으면 토큰에서 직접 받아온다(`/me?fields=user_id`) |
 | `GH_PAT` | 토큰 자동 갱신용. **Fine-grained PAT**, 이 저장소만 선택, 권한은 `Secrets: Read and write` **하나만**. 만료는 `No expiration`. 없으면 갱신만 실패하고 발행은 토큰 만료일까지 계속 된다 |
 
 > `repo` 클래식 스코프는 모든 저장소의 전체 통제권을 준다. 여기 필요한 건 이 저장소의
@@ -103,8 +103,13 @@ public 저장소라 Actions 분은 무제한이다.
 스레드 시각(:07)과 분 단위로 어긋나게 둬서 겹치지 않는다.
 
 토큰 받는 법: [Meta 앱 대시보드](https://developers.facebook.com/apps) → 쓰던 앱 →
-`Instagram` → `API 설정` → **Instagram 비즈니스 로그인**. 거기서 계정을 붙이면 장기
-토큰과 계정 ID가 같은 화면에 뜬다. 둘을 위 표대로 시크릿에 넣으면 끝이다.
+왼쪽 메뉴 `Instagram` → **API setup with Instagram business login**(한글 UI는 "Instagram
+비즈니스 로그인으로 API 설정") → @gzclab 줄의 **Generate token** → 인스타 로그인 →
+나온 토큰을 `IG_TOKEN`에 넣는다. 대시보드에서 받은 토큰은 **장기(60일)**다.
+
+> **그 화면의 "Instagram 앱 ID"를 `IG_USER_ID`에 넣지 말 것.** 다른 값이다. 계정 id는
+> `/me?fields=user_id`가 주는 값이고(@gzclab = `17841415978140110`), 코드가 토큰에서
+> 알아서 받아오므로 애초에 넣을 필요가 없다.
 
 확인: `IG_TOKEN=... python instagram_publish.py --check` → 계정명이 찍히면 산 토큰이다.
 미리보기: `python instagram_publish.py --dry` (올리지 않고 캡션과 카드 주소만 찍는다).
