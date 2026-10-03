@@ -72,10 +72,10 @@ def build(date_key, draws):
 
 
 # ---------- 발행 ----------
-# 번호는 (회차)로만 고정이라 같은 주엔 매일 올려도 글이 똑같다. 그래서 회차당 한 번,
-# 주 1회만 나간다. 금요일을 고른 건 추첨(토 20:45) 직전이라 "사러 가기 전"에 읽히기 때문이다.
-BAND_DAY = 4          # 월=0 … 금=4
+# 번호는 날짜로 고정이라 날이 바뀌면 5게임도 바뀐다. 그래서 매일 나간다.
+# id가 band-2026-10-03 꼴이라 같은 날 몇 번을 돌려도 한 번만 발행된다.
 BAND_TIME = (14, 7)   # KST. 07:07/12:07/17:07/21:07 사이에서 제일 넓게 빈 자리다.
+BAND_UNTIL = (18, 0)  # 본문이 '4시간 안에 답 달아줌'을 약속한다. 밤에 살아난 루프가 올리면 안 된다.
 LINK_LEAD = "번호 사러 갈 때 근처에 1등 많이 나온 집 있는지는 여기서 보면 됨:"
 
 
@@ -88,9 +88,9 @@ def already(queue, entry_id):
 
 
 def run_auto(now, dry=False):
-    """tick.py가 5분마다 부른다. 금 14:07이 지났고 이번 회차 글이 없으면 발행한다."""
+    """tick.py가 5분마다 부른다. 14:07~18:00 사이이고 오늘 글이 없으면 발행한다."""
     local = kst(now)
-    if local.weekday() != BAND_DAY or (local.hour, local.minute) < BAND_TIME:
+    if not BAND_TIME <= (local.hour, local.minute) < BAND_UNTIL:
         return 0
     date_key = bg.kst_date_key(now)
     entry_id = f"band-{date_key}"

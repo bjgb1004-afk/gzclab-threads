@@ -13,7 +13,7 @@ public 저장소라 Actions 분은 무제한이다.
   각 단계는 원래 멱등이라 5분마다 불려도 한 번씩만 나간다.
 - `queue.json` — 발행 대기열. 위에서부터 순서대로 나간다. `status`는 `pending` / `published` / `skipped`.
 - `publish.py` — 큐에서 하나 꺼내 발행. 표준 라이브러리만 쓴다(설치할 의존성 없음).
-- `.github/workflows/refresh-token.yml` — 매주 일요일 액세스 토큰 갱신(60일 만료 대비).
+- `.github/workflows/refresh-token.yml` — 매주 일요일 스레드·인스타 토큰 갱신(각 60일 만료 대비).
 - `collect_insights.py` — 발행 24시간 지난 글의 조회·좋아요·댓글 수집.
 - `auto_reply.py` — 댓글에 달린 지역명을 읽어 그 동네 TOP3를 답글로 단다.
 - `bake_replies.py` + `district_replies.json` — 구별 답글 문장을 미리 구워둔 것.
@@ -101,8 +101,9 @@ public 저장소라 Actions 분은 무제한이다.
 확인: `IG_TOKEN=... python instagram_publish.py --check` → 계정명이 찍히면 산 토큰이다.
 미리보기: `python instagram_publish.py --dry` (올리지 않고 캡션과 카드 주소만 찍는다).
 
-> **토큰 만료 60일.** 스레드 토큰과 달리 자동 갱신이 없다. 만료되면 텔레그램으로
-> 발행 실패 알림이 오므로, 그때 같은 화면에서 다시 받아 시크릿만 갈아끼우면 된다.
+> **토큰 만료 60일.** 스레드 토큰과 같이 `refresh-token.yml`이 매주 일요일 갱신한다
+> (`ig_refresh_token`). 갱신될 때마다 만료가 60일로 리셋되므로 손댈 일이 없고,
+> 실패하면 텔레그램으로 알림이 온다. 그때만 같은 화면에서 다시 받아 시크릿을 갈면 된다.
 
 이미지는 `cards.py`가 그려 저장소에 커밋하고, 인스타 서버가 `raw.githubusercontent.com`
 주소로 직접 받아간다. GitHub Pages는 쓰지 않는다 — 켤 설정도 없고 배포 대기도 없다.

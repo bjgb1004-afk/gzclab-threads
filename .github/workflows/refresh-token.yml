@@ -1,4 +1,4 @@
-name: Refresh Threads token
+name: Refresh tokens
 
 on:
   schedule:
@@ -51,4 +51,36 @@ jobs:
             -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode "text=$MSG" > /dev/null
           # 텔레그램 전송이 성공하면 잡이 초록불로 끝나서, Actions 목록만 보면
           # 갱신 실패를 알 수 없었다.
+          exit ${FAILED:-0}
+
+      # 인스타 토큰도 60일 만료다. 손으로 다시 받으러 가지 않으려고 같이 돌린다.
+      # IG_TOKEN이 없으면(인스타를 안 쓰는 상태) 아무것도 하지 않는다.
+      - name: Refresh Instagram token
+        if: always()
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          [ -z "$IG_TOKEN" ] && echo "IG_TOKEN 없음 — 건너뜀" && exit 0
+          set -o pipefail
+          RESP=$(curl -s "https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=$IG_TOKEN")
+          echo "$RESP" | grep -o '"error".*' || echo "refresh ok"
+          NEW=$(printf '%s' "$RESP" | python -c "import json,sys; print(json.load(sys.stdin).get('access_token',''))")
+          SECS=$(printf '%s' "$RESP" | python -c "import json,sys; print(json.load(sys.stdin).get('expires_in') or 0)")
+          [ "$SECS" -gt 0 ] && EXP="$((SECS/86400))일 (~$(date -u -d "+$SECS seconds" +%F))" || EXP="미확인"
+          if [ -z "$NEW" ]; then
+            MSG="❌ 인스타 토큰 갱신 실패 — Actions 로그의 error 본문 확인. 만료되면 인스타 발행만 멈춥니다(스레드는 계속)."
+            FAILED=1
+          elif [ -z "$GH_TOKEN" ]; then
+            MSG="❌ 인스타 토큰은 받았지만 저장 실패 — GH_PAT 시크릿이 없습니다."
+            FAILED=1
+          elif printf '%s' "$NEW" | gh secret set IG_TOKEN --repo "$GITHUB_REPOSITORY"; then
+            MSG="🔑 인스타 토큰 갱신 완료. 만료: $EXP. 할 일 없음."
+          else
+            MSG="❌ 인스타 토큰 저장 실패 — GH_PAT 권한/만료 확인 필요(Secrets 쓰기 권한)."
+            FAILED=1
+          fi
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage"             -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode "text=$MSG" > /dev/null
           exit ${FAILED:-0}
