@@ -72,4 +72,18 @@ with tempfile.TemporaryDirectory() as tmp:
     saved = json.loads(q.read_text(encoding="utf-8"))
     assert len({p["id"] for p in saved}) == len(saved), "id가 겹쳤다"
 
+    # ---------- 아침 지역 글 재활용 ----------
+    am = [{"id": f"top5-{i}", "status": st, "slot": "am"}
+          for i, st in enumerate(["published", "published", "skipped", "pending"])]
+    q.write_text(json.dumps(am, ensure_ascii=False), encoding="utf-8")
+    assert gp.recycle(q) == [], "pending이 남아 있으면 건드리지 않는다"
+
+    am[-1]["status"] = "published"
+    q.write_text(json.dumps(am, ensure_ascii=False), encoding="utf-8")
+    again = gp.recycle(q)
+    assert len(again) == 3, [p["id"] for p in again]          # skipped 1편은 그대로
+    back = json.loads(q.read_text(encoding="utf-8"))
+    assert [p["status"] for p in back] == ["pending", "pending", "skipped", "pending"]
+    assert gp.recycle(q) == [], "되돌린 직후엔 다시 돌리지 않는다"
+
 print("ok")

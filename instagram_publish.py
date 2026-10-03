@@ -41,9 +41,18 @@ APP_LINK = "https://gzclab.com/lottomap/?c=ig"
 # KST 발행 시각. Threads 작업(07:07 / 12:07 / 17:07 / 21:07)과 분 단위로 겹치지 않게 둔다.
 SLOTS = {
     "genius": (12, 17),
+    "band": (12, 17),
     "replay": (20, 17),
 }
-WEEKDAYS = (0, 1, 2, 3, 4)  # 월~금
+
+
+def kinds_for(day):
+    """그날 올릴 두 가지. 점심은 평일 천재 / 주말 번호대, 저녁은 매일 놓친 당첨금.
+
+    천재는 월~금 다섯 명뿐이라 주말에 쓸 것이 없다. 스레드도 토요일 번호 자리가
+    번호대 분석이라 두 채널이 같은 요일에 같은 소재를 낸다.
+    """
+    return ("genius" if day.weekday() < 5 else "band", "replay")
 
 TOKEN = None
 IG_USER_ID = None
@@ -172,16 +181,15 @@ def save_state(state):
 
 
 def due(now):
-    """지금까지 시각이 지난 (종류, 키, 날짜) 목록. 주말은 빈 목록.
+    """지금까지 시각이 지난 (종류, 키, 날짜) 목록.
 
     지난 슬롯을 전부 돌려주는 건 일부러다 — 점심 건이 실패해도 저녁 틱에서 다시 시도된다.
     이미 올린 건은 state로 걸러지므로 두 번 나가지 않는다.
     """
     local = now.astimezone(cards.KST)
-    if local.weekday() not in WEEKDAYS:
-        return []
-    return [(kind, f"{kind}-{local.date().isoformat()}", local.date())
-            for kind, slot in SLOTS.items() if (local.hour, local.minute) >= slot]
+    day = local.date()
+    return [(kind, f"{kind}-{day.isoformat()}", day)
+            for kind in kinds_for(day) if (local.hour, local.minute) >= SLOTS[kind]]
 
 
 # tick이 5분마다 부른다. 실패할 때마다 알리면 하루 100통이 온다 — 셋째 실패에서 한 번만
@@ -255,9 +263,7 @@ def ensure_cards(now):
     이 틱에서 만들어지고 다음 틱에서 발행된다. 이미 있으면 아무것도 하지 않는다.
     """
     day = now.astimezone(cards.KST).date()
-    if day.weekday() not in WEEKDAYS:
-        return []
-    made = [cards.build_one(kind, day) for kind in SLOTS]
+    made = [cards.build_one(kind, day) for kind in kinds_for(day)]
     # 발행이 끝난 카드는 인스타가 자기 쪽에 복사해 두므로 저장소에 남길 필요가 없다.
     # 안 지우면 하루 300KB씩 쌓여 체크아웃만 느려진다. 손으로 넣은 파일은 건드리지 않는다.
     keep = {p.name for p in made}

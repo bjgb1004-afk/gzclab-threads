@@ -269,6 +269,28 @@ def top_up(now, days=AHEAD_DAYS, queue_path=QUEUE, draws=None):
     return added
 
 
+def recycle(queue_path=QUEUE):
+    """손으로 쓴 am(지역 TOP5) 글이 다 나가면 맨 앞부터 다시 돌린다.
+
+    pm/night는 top_up이 데이터에서 찍어내므로 소재가 안 떨어지지만, 지역 글은 손으로 쓴
+    72편이 전부다. 새로 찍어내려면 districts.json이 있어야 하는데 그건 공개 재배포를
+    피하려고 커밋하지 않아서 Actions에는 없다. 그래서 다시 돌린다 — 한 바퀴가 두 달이 넘어
+    타임라인에서 같은 글이 붙어 보이지 않는다.
+
+    status만 되돌린다. post_id와 published_at은 다음 발행이 덮어쓴다. 일부러 건너뛴
+    글(skipped)은 그대로 둔다.
+    """
+    queue = json.loads(queue_path.read_text(encoding="utf-8"))
+    if any(p.get("slot") == "am" and p.get("status") == "pending" for p in queue):
+        return []
+    again = [p for p in queue if p.get("slot") == "am" and p.get("status") == "published"]
+    for p in again:
+        p["status"] = "pending"
+    if again:
+        queue_path.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return again
+
+
 def main(argv=()):
     """미리보기: python gen_posts.py --dry [--days 7]"""
     now = datetime.datetime.now(datetime.timezone.utc)

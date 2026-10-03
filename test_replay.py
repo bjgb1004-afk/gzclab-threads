@@ -102,16 +102,30 @@ finally:
     rp.CACHE = _orig
 
 # ---------- 번호대 글 ----------
-post = band_picks.build(bg.kst_date_key(), DRAWS)
-assert len(post["text"]) <= band_picks.LIMIT
-assert post["reply_mode"] == "replay"
-assert "4시간" in post["text"], "4시간 안내가 빠지면 답글 창과 본문이 어긋난다"
-for banned in ("예측", "적중", "확률 높", "잘 나오"):
-    assert banned not in post["text"], banned
-# 글에 실린 번호가 앱이 내는 번호와 같아야 한다
 today = bg.kst_date_key()
-for gm in bg.generate_daily_band_games(today):
-    assert bg.fmt(gm["numbers"]) in post["text"], gm["numbers"]
+posts = {k: f(today, DRAWS) for k, f in band_picks.BUILD.items()}
+for kind, post in posts.items():
+    assert len(post["text"]) <= band_picks.LIMIT, (kind, len(post["text"]))
+    assert post["reply_mode"] == "replay", kind
+    assert "4시간" in post["text"], "4시간 안내가 빠지면 답글 창과 본문이 어긋난다"
+    for banned in ("예측", "적중", "확률 높", "잘 나오"):
+        assert banned not in post["text"], (kind, banned)
+
+# 글에 실린 번호가 앱이 내는 번호와 같아야 한다
+games = bg.generate_daily_band_games(today)
+for gm in games:
+    assert bg.fmt(gm["numbers"]) in posts["band"]["text"], gm["numbers"]
+# 놓친 당첨금 글은 그 5게임의 A게임 한 줄만 싣는다
+assert bg.fmt(games[0]["numbers"]) in posts["miss"]["text"]
+assert bg.fmt(games[1]["numbers"]) not in posts["miss"]["text"]
+
+# 두 글은 서로 다른 날/요일 창에서 나간다 — 토요일만 둘 다 뜬다
+KST9 = datetime.timezone(datetime.timedelta(hours=9))
+assert band_picks.due(datetime.datetime(2026, 10, 10, 10, 7, tzinfo=KST9)) == ["band"]   # 토
+assert band_picks.due(datetime.datetime(2026, 10, 10, 15, 0, tzinfo=KST9)) == ["miss"]   # 토 오후
+assert band_picks.due(datetime.datetime(2026, 10, 12, 10, 7, tzinfo=KST9)) == []         # 월 오전
+assert band_picks.due(datetime.datetime(2026, 10, 12, 15, 0, tzinfo=KST9)) == ["miss"]   # 월 오후
+assert band_picks.due(datetime.datetime(2026, 10, 12, 19, 0, tzinfo=KST9)) == []         # 창 닫힘
 
 # ---------- 댓글 번호 파싱 ----------
 pn = auto_reply.parse_numbers

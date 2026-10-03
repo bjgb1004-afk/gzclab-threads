@@ -37,8 +37,8 @@ except RuntimeError as e:
 # ---------- 파일명은 cards.py 한 곳에서만 정한다 ----------
 mon = datetime.date(2026, 10, 5)   # 월요일
 for kind in ip.SLOTS:
-    name, cap = ip.build(kind, mon)
-    assert name == cards.card_name(kind, mon), (kind, name)
+    name, cap = ip.build(kind, mon if kind != "band" else datetime.date(2026, 10, 10))
+    assert name == cards.card_name(kind, mon if kind != "band" else datetime.date(2026, 10, 10))
     assert f"{ip.CARD_BASE}/{name}.jpg".startswith("https://raw.githubusercontent.com/")
     assert len(cap) <= ip.CAPTION_LIMIT, (kind, len(cap))
     assert ip.APP_LINK in cap, kind
@@ -47,13 +47,18 @@ for kind in ip.SLOTS:
         assert banned not in cap, (kind, banned)
 
 # ---------- 같은 건을 두 번 올리지 않는다 ----------
-noon = datetime.datetime(2026, 10, 5, 12, 30, tzinfo=KST)
+noon = datetime.datetime(2026, 10, 5, 12, 30, tzinfo=KST)        # 월
 assert [k for k, _, _ in ip.due(noon)] == ["genius"]
 evening = datetime.datetime(2026, 10, 5, 21, 0, tzinfo=KST)
 assert sorted(k for k, _, _ in ip.due(evening)) == ["genius", "replay"]
-# 주말은 쉰다
-assert ip.due(datetime.datetime(2026, 10, 4, 21, 0, tzinfo=KST)) == []
-assert ip.ensure_cards(datetime.datetime(2026, 10, 4, 21, 0, tzinfo=KST)) == []
+# 주말은 천재가 없다(월~금 5명뿐). 점심 자리를 번호대가 받는다.
+sat = datetime.datetime(2026, 10, 10, 21, 0, tzinfo=KST)
+assert sorted(k for k, _, _ in ip.due(sat)) == ["band", "replay"]
+assert [k for k, _, _ in ip.due(datetime.datetime(2026, 10, 11, 13, 0, tzinfo=KST))] == ["band"]
+# 하루 두 건을 넘기지 않는다
+for d in range(5, 12):
+    n = datetime.datetime(2026, 10, d, 23, 0, tzinfo=KST)
+    assert len(ip.due(n)) == 2, (d, ip.due(n))
 
 # ---------- 실패해도 5분마다 알림이 오지 않는다 ----------
 sent, tmp = [], pathlib.Path("_test_instagram_state.json")
