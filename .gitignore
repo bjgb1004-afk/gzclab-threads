@@ -16,3 +16,6 @@ draws_cache.json
 
 # 인스타 카드 미리보기. 발행용은 Actions가 따로 굽는다.
 preview/
+
+# 카드 레이아웃 확인용 미리보기. 발행용 카드(genius-/replay-/band-)는 Actions가 굽고 커밋한다.
+cards/ig-*.jpg

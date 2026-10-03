@@ -64,6 +64,25 @@ def weekly_draw_due(queue, now):
     return not any(p["id"] == f"draw-{gen_draw_post.latest_draw(local.date())}" for p in queue)
 
 
+def instagram(now):
+    """인스타 평일 2건. 카드를 먼저 만들고(없을 때만) 커밋된 카드로 발행한다.
+
+    인스타는 이미지를 공개 URL로 받아가므로 이 틱에서 만든 카드는 다음 틱에서 올라간다
+    (커밋·푸시는 워크플로가 매 틱 한다). cards.py가 PIL을 쓰므로 여기서 늦게 import한다 —
+    인스타 쪽 의존성이 없는 러너에서 스레드 파이프라인까지 멈추면 안 된다.
+    """
+    try:
+        import instagram_publish as ip
+    except ImportError as e:
+        # Pillow 없는 러너. 스레드는 멀쩡하니 조용히 넘어간다(5분마다 알림이 오면 안 된다).
+        print(f"instagram 건너뜀: {e}", file=sys.stderr)
+        return
+
+    ip.TOKEN, ip.IG_USER_ID = os.environ["IG_TOKEN"], os.environ["IG_USER_ID"]
+    ip.ensure_cards(now)
+    ip.run_auto(now)
+
+
 def step(name, fn):
     try:
         fn()
@@ -88,6 +107,9 @@ def main():
     # 큐가 마르면 지난 회차 데이터로 pm/night 글을 찍어 채운다. 손으로 쓴 글이 남아 있으면
     # 아무것도 하지 않는다.
     step("topup", lambda: gen_posts.top_up(now))
+    # 인스타. 토큰이 없으면 아무 말 없이 건너뛴다 — 스레드만 돌려도 되게.
+    if os.environ.get("IG_TOKEN") and os.environ.get("IG_USER_ID"):
+        step("instagram", lambda: instagram(now))
     step("reply", auto_reply.main)
     step("insights", collect_insights.main)
     return 0

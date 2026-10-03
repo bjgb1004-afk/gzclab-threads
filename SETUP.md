@@ -23,7 +23,11 @@ public 저장소라 Actions 분은 무제한이다.
 - `picks.json` — 회차별로 올린 번호·글 id·채점 결과. 워크플로가 커밋한다.
 - `gen_draw_post.py` — 토요일 추첨 뒤 1등 배출점 글을 큐에 넣는다(토 23시~일 12시 창).
 - `band_picks.py` + `replay.py` — 번호대 글(아래 6절). **매일** KST 14:07.
-- `test_publish.py`, `test_collect_insights.py`, `test_auto_reply.py`, `test_tick.py`, `test_replay.py` —
+- `instagram_publish.py` + `cards.py` — 인스타 자동 발행(평일 2건)과 카드 렌더러(아래 2-1절).
+  `tick.py`가 같이 돌린다. `IG_TOKEN`이 없으면 이 단계만 건너뛴다.
+- `band_gen.py` — 번호대 생성기. 앱 `bandAnalysis`와 같은 번호를 낸다. 날짜로 고정.
+- `test_publish.py`, `test_collect_insights.py`, `test_auto_reply.py`, `test_tick.py`, `test_replay.py`,
+  `test_band_gen.py`, `test_instagram.py` —
   `python test_*.py`. 네트워크 없이 로직만 검증.
 
 ## 1. Threads 액세스 토큰 발급 (수동, 최초 1회)
@@ -72,6 +76,8 @@ public 저장소라 Actions 분은 무제한이다.
 | `THREADS_TOKEN` | 위에서 받은 장기 토큰 |
 | `TELEGRAM_BOT_TOKEN` | gzclab_bot 토큰 (`gzclab-web/.env`와 동일) |
 | `TELEGRAM_CHAT_ID` | 같은 파일의 chat id |
+| `IG_TOKEN` | 인스타 장기 토큰(60일). 없으면 인스타 단계만 조용히 건너뛰고 스레드는 그대로 돈다 |
+| `IG_USER_ID` | 같은 화면에 뜨는 인스타 계정 숫자 ID |
 | `GH_PAT` | 토큰 자동 갱신용. **Fine-grained PAT**, 이 저장소만 선택, 권한은 `Secrets: Read and write` **하나만**. 만료는 `No expiration`. 없으면 갱신만 실패하고 발행은 토큰 만료일까지 계속 된다 |
 
 > `repo` 클래식 스코프는 모든 저장소의 전체 통제권을 준다. 여기 필요한 건 이 저장소의
@@ -82,6 +88,26 @@ public 저장소라 Actions 분은 무제한이다.
 > (URL 끝에 `/edit`)로 들어가야 바꿀 수 있다. 목록에서 고를 것은 설명이
 > "Manage Actions repository secrets"인 `Secrets` — `Dependabot secrets`,
 > `Codespaces secrets`, `Secret scanning alerts`는 다른 것이다.
+
+## 2-1. 인스타그램 (`instagram_publish.py`)
+
+평일 하루 2건이 저절로 나간다. 점심 12:17 천재 번호 카드, 저녁 20:17 되짚어보기 카드(KST).
+스레드 시각(07:07 / 12:07 / 17:07 / 21:07)과 분 단위로 어긋나게 둬서 겹치지 않는다.
+
+토큰 받는 법: [Meta 앱 대시보드](https://developers.facebook.com/apps) → 쓰던 앱 →
+`Instagram` → `API 설정` → **Instagram 비즈니스 로그인**. 거기서 계정을 붙이면 장기
+토큰과 계정 ID가 같은 화면에 뜬다. 둘을 위 표대로 시크릿에 넣으면 끝이다.
+
+확인: `IG_TOKEN=... python instagram_publish.py --check` → 계정명이 찍히면 산 토큰이다.
+미리보기: `python instagram_publish.py --dry` (올리지 않고 캡션과 카드 주소만 찍는다).
+
+> **토큰 만료 60일.** 스레드 토큰과 달리 자동 갱신이 없다. 만료되면 텔레그램으로
+> 발행 실패 알림이 오므로, 그때 같은 화면에서 다시 받아 시크릿만 갈아끼우면 된다.
+
+이미지는 `cards.py`가 그려 저장소에 커밋하고, 인스타 서버가 `raw.githubusercontent.com`
+주소로 직접 받아간다. GitHub Pages는 쓰지 않는다 — 켤 설정도 없고 배포 대기도 없다.
+카드는 틱 하나에서 만들어 커밋되고 그 다음 틱(5분 뒤)에 발행된다. 올라간 카드는
+인스타가 자기 쪽에 복사해 두므로, 다음 날 틱이 저장소에서 지운다.
 
 ## 3. 한도
 
@@ -94,6 +120,8 @@ public 저장소라 Actions 분은 무제한이다.
   링크답글 2~3건에 자동 답글 상한 150건을 더해 최악 157건, 한도의 63%다. 자동 답글 상한은
   두 겹이다 — 글 하나당 50건(`DAILY_CAP`), 계정 전체 하루 150건(`ACCOUNT_DAILY_CAP`).
   계정 상한이 없으면 7일 창에 든 글 10개 × 50건 = 500건까지 가서 그날 본문 발행까지 같이 죽는다.
+- Instagram Graph API: 24시간 **100건**. 평일 2건이면 2%다. 카드 이미지는 raw 주소로
+  나가므로 별도 호스팅 한도가 없다.
 - 토큰: 60일 만료. **매주 일요일** 자동 갱신되며(갱신할 때마다 만료가 60일로 리셋),
   실패하면 텔레그램 알림 + Actions 잡도 빨간불로 끝난다. 주 1회면 만료 전에 8번의
   기회가 있어서, 한두 번 실패해도 토큰이 죽지 않는다.

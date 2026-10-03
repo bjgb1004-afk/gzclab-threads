@@ -30,9 +30,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 스레드 파이프라인은 표준 라이브러리만 쓴다. 이 둘은 인스타 카드(cards.py)를
+      # 그리는 데만 필요하다 — 없으면 인스타 단계만 죽고 스레드는 그대로 돈다.
+      - name: Card deps
+        run: |
+          pip install --quiet Pillow
+          # 굵기 구분이 있는 CJK 글꼴. 깔리지 않으면 cards.py가 저장소의 Bold 하나로 떨어진다.
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk || true
+
       - name: Loop
         env:
           THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
@@ -42,7 +52,12 @@ jobs:
           while [ "$(date +%s)" -lt "$END" ]; do
             git pull --rebase --autostash -q || true
             python tick.py || true
-            git add queue.json picks.json
+            # 카드는 커밋돼야 인스타가 받아간다(raw 주소로 내려받는다). instagram.json은
+            # 발행 기록 — 사라지면 다음 틱이 같은 걸 또 올린다. 아직 없는 경로가 섞여도
+            # 나머지 add가 죽지 않게 하나씩 더한다.
+            for f in queue.json picks.json instagram.json cards; do
+              git add -A "$f" 2>/dev/null || true
+            done
             # 발행·답글 기록이 사라지면 다음 틱이 같은 글을 또 올린다. 커밋은 매 틱마다.
             if ! git diff --cached --quiet; then
               git commit -q -m "chore: tick"
