@@ -877,10 +877,12 @@
   },
   {
     "id": "talk-night-08",
-    "status": "pending",
+    "status": "published",
     "slot": "night",
     "text": "우리 동네에서 1등 제일 많이 나온 집 어딘지 앎?\n모르면 3초면 확인됨. 알고 나면 지나갈 때마다 쳐다보게 되더라.",
-    "link": "https://gzclab.com/lottomap/?c=talk"
+    "link": "https://gzclab.com/lottomap/?c=talk",
+    "post_id": "18118433923962315",
+    "published_at": "2026-10-03T12:09:01+00:00"
   },
   {
     "id": "talk-night-09",
