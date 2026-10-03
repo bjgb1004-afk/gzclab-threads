@@ -84,11 +84,27 @@ def image_reachable(url):
 CAPTION_LIMIT = 2200   # 넘기면 글이 잘린 채 올라간다
 
 
+def user_id():
+    """미디어 엔드포인트에 쓸 계정 id. IG_USER_ID가 없으면 토큰에서 직접 받아온다.
+
+    앱 대시보드가 보여주는 "Instagram 앱 ID"는 이 값이 아니다(그걸 넣으면 전부 실패한다).
+    /me가 주는 user_id가 인스타 프로 계정 id이고, 같은 응답의 id(앱 스코프)도 발행에는
+    통한다 — 2026-10-03에 content_publishing_limit로 둘 다 확인했다. 문서가 어느 쪽이라고
+    못 박지 않아서, 사람이 고르게 두지 않고 여기서 정한다.
+    """
+    global IG_USER_ID
+    if not IG_USER_ID:
+        info = me()
+        IG_USER_ID = str(info.get("user_id") or info["id"])
+    return IG_USER_ID
+
+
 def publish_image(image_url, caption):
     """컨테이너 생성 → 발행. 발행된 미디어 id."""
     if len(caption) > CAPTION_LIMIT:
         raise RuntimeError(f"캡션 {len(caption)}자 — 한도 {CAPTION_LIMIT} 초과")
-    container = api(f"{IG_USER_ID}/media", {
+    uid = user_id()
+    container = api(f"{uid}/media", {
         "image_url": image_url,
         "caption": caption,
         "access_token": TOKEN,
@@ -99,7 +115,7 @@ def publish_image(image_url, caption):
     for wait in (3, 10, 30):
         time.sleep(wait)
         try:
-            return api(f"{IG_USER_ID}/media_publish", {
+            return api(f"{uid}/media_publish", {
                 "creation_id": container,
                 "access_token": TOKEN,
             })["id"]
@@ -275,7 +291,7 @@ def ensure_cards(now):
 
 def me():
     """토큰이 살아 있고 어떤 계정에 붙었는지. `python instagram_publish.py --check`"""
-    q = urllib.parse.urlencode({"fields": "id,username,account_type", "access_token": TOKEN})
+    q = urllib.parse.urlencode({"fields": "user_id,username,account_type", "access_token": TOKEN})
     with urllib.request.urlopen(f"{API}/me?{q}", timeout=60) as r:
         return json.load(r)
 

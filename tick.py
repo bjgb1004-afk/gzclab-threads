@@ -78,7 +78,9 @@ def instagram(now):
         print(f"instagram 건너뜀: {e}", file=sys.stderr)
         return
 
-    ip.TOKEN, ip.IG_USER_ID = os.environ["IG_TOKEN"], os.environ["IG_USER_ID"]
+    ip.TOKEN = os.environ["IG_TOKEN"]
+    # IG_USER_ID는 없어도 된다. 없으면 토큰에서 직접 받아온다.
+    ip.IG_USER_ID = os.environ.get("IG_USER_ID")
     ip.ensure_cards(now)
     ip.run_auto(now)
 
@@ -110,7 +112,7 @@ def main():
     # 아침 지역 글은 손으로 쓴 것이 전부라 다 나가면 맨 앞부터 다시 돌린다.
     step("recycle", gen_posts.recycle)
     # 인스타. 토큰이 없으면 아무 말 없이 건너뛴다 — 스레드만 돌려도 되게.
-    if os.environ.get("IG_TOKEN") and os.environ.get("IG_USER_ID"):
+    if os.environ.get("IG_TOKEN"):
         step("instagram", lambda: instagram(now))
     step("reply", auto_reply.main)
     step("insights", collect_insights.main)
