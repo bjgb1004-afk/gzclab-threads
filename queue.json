@@ -1291,7 +1291,14 @@
     "reply_mode": "replay",
     "post_id": "18145792213562373",
     "date": "2026-10-03",
-    "published_at": "2026-10-03T05:10:14+00:00"
+    "published_at": "2026-10-03T05:10:14+00:00",
+    "insights": {
+      "views": 435,
+      "likes": 3,
+      "replies": 0,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "picks-1244-sat",
