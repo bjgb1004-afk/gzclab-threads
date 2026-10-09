@@ -1606,7 +1606,14 @@
     "reply_mode": "replay",
     "post_id": "18093225065668751",
     "date": "2026-10-08",
-    "published_at": "2026-10-08T05:11:37+00:00"
+    "published_at": "2026-10-08T05:11:37+00:00",
+    "insights": {
+      "views": 469,
+      "likes": 5,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "picks-1245-thu",
