@@ -1744,7 +1744,14 @@
     "reply_mode": "replay",
     "post_id": "18105760337251029",
     "date": "2026-10-10",
-    "published_at": "2026-10-10T01:10:41+00:00"
+    "published_at": "2026-10-10T01:10:41+00:00",
+    "insights": {
+      "views": 340,
+      "likes": 4,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "miss-2026-10-10",
