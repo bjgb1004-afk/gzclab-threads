@@ -163,4 +163,49 @@ assert auto_reply.main() == 0
 assert 0 < len(posted) < POSTS, len(posted)
 assert len(posted) == auto_reply.ACCOUNT_DAILY_CAP // PER_POST, len(posted)
 
+# ---------- compose_combo + comment_picks (2026-10-13) ----------
+import lotto_gen as _lg
+
+FAKE_HISTORY = [(n, _lg.store_game(f"fake{n}", n)) for n in range(1, 200)]
+
+# 명당(지역) 조합: genius 없이 lotto_gen.store_game을 그대로 쓴다
+text, nums = auto_reply.compose_combo("u1", 1300)
+assert nums == _lg.store_game("user:u1", 1300), nums
+assert _lg.fmt(nums) in text and "u1아" in text, text
+
+# 분석법 조합: recipes.py 후보 풀에서 뽑고, 같은 입력이면 같은 번호
+text, nums = auto_reply.compose_combo("u1", 1300, "archimedes", FAKE_HISTORY)
+text2, nums2 = auto_reply.compose_combo("u1", 1300, "archimedes", FAKE_HISTORY)
+assert nums == nums2, (nums, nums2)
+assert "아르키메데스" in text and _lg.fmt(nums) in text, text
+# 회차가 바뀌면 번호도 바뀐다(같은 유저여도)
+_, nums3 = auto_reply.compose_combo("u1", 1301, "archimedes", FAKE_HISTORY)
+assert nums3 != nums, "회차가 바뀌었는데 번호가 같음"
+
+# record_comment_pick: 기록되고, 같은 reply_id면 중복 기록하지 않는다
+tmp2 = _pathlib.Path(tempfile.mkdtemp()) / "comment_picks.json"
+auto_reply.COMMENT_PICKS = tmp2
+auto_reply.record_comment_pick(1300, "archimedes", "u1", nums, "r1")
+auto_reply.record_comment_pick(1300, "archimedes", "u1", nums, "r1")  # 재시도해도 한 번만
+saved = _json.loads(tmp2.read_text(encoding="utf-8"))
+assert len(saved) == 1 and saved[0]["numbers"] == nums and saved[0]["recipe"] == "archimedes", saved
+
+# main() 통합: reply_mode=combo + genius 글의 댓글에 답하면서 comment_picks.json에 남긴다
+auto_reply.recipe_history = lambda: FAKE_HISTORY
+(tmp / "queue.json").write_text(_json.dumps([
+    {"id": "picks-1300-mon", "status": "published", "post_id": "mgen", "genius": "archimedes",
+     "reply_mode": "combo", "text": "[1300회] 월요일의 분석: 아르키메데스",
+     "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")},
+]), encoding="utf-8")
+auto_reply.conversation = lambda media_id, token: [
+    {"id": "gc1", "username": "u5", "text": "나도 궁금", "replied_to": {"id": "mgen"}, "timestamp": TODAY},
+]
+posted.clear()
+auto_reply.COMMENT_PICKS = tmp2 = _pathlib.Path(tempfile.mkdtemp()) / "comment_picks.json"
+assert auto_reply.main() == 0
+assert len(posted) == 1 and "아르키메데스" in posted[0][0], posted
+logged = _json.loads(tmp2.read_text(encoding="utf-8"))
+assert len(logged) == 1 and logged[0]["recipe"] == "archimedes" and logged[0]["username"] == "u5", logged
+assert logged[0]["reply_id"] == "new-id", logged  # send()가 돌려준 값을 그대로 쓴다
+
 print("ok")

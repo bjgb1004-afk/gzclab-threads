@@ -116,6 +116,9 @@ def analyze(draws, last):
         "sum": (top_sum, pct(top_sum_n, len(hist))),
         "odd_even": (top_oe, pct(top_oe_n, len(hist))),
         "no_consec": pct(no_consec, len(hist)),
+        # 공통 필터(합 100~175·홀짝 6:0 제외·연속 3개 제외)를 역대 당첨번호가 통과하는 비율.
+        # 필터가 뭘 버리는지 숫자로 밝히는 용도. 글에 "그래서 유리하다"로는 쓰지 않는다.
+        "filter_pass": pct(sum(1 for d in hist if g.passes_common_filters(d)), len(hist)),
         "total": len(hist),
     }
 

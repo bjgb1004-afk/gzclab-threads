@@ -890,7 +890,11 @@
     "slot": "pm",
     "text": "명당 소문은 대체 누가 처음 퍼뜨리는 걸까.\n인터넷 보고 찾아간 적 있는데 가보니까 간판도 없는 동네 슈퍼였음.",
     "post_id": "18106345348967998",
-    "published_at": "2026-10-07T03:11:13+00:00"
+    "published_at": "2026-10-07T03:11:13+00:00",
+    "insights_attempts": 3,
+    "insights": {
+      "error": "THApiException code 100/33: object missing or unsupported"
+    }
   },
   {
     "id": "talk-pm-06",

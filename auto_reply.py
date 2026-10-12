@@ -15,12 +15,15 @@ import urllib.parse
 import urllib.request
 
 import lotto_gen
+import lotto_stats
 import publish
+import recipes
 import replay as rp
 from publish import API, telegram
 
 HERE = pathlib.Path(__file__).parent
 REPLIES = HERE / "district_replies.json"
+COMMENT_PICKS = HERE / "comment_picks.json"
 ME = "gzclab"
 REPLY_LIMIT = 500  # Threads 글자 제한. 넘으면 번호 줄을 빼고 TOP3만 보낸다
 
@@ -84,14 +87,55 @@ def compose(kind, value, username, replies, followup_ok):
     return None
 
 
-def compose_combo(username, draw_no):
-    """지역 없이 댓글만 단 사람 몫의 조합. 닉네임+회차로 뽑아서 같은 주엔 누가 다시 물어도 같다."""
-    nums = lotto_gen.fmt(lotto_gen.store_game(f"user:{username}", draw_no))
-    return (
-        f"{username}아 {draw_no}회 네 조합 뽑아왔어!\n{nums}\n\n"
+def recipe_history():
+    """복권명당 "수학 분석" 레시피가 쓸 전체 당첨 이력. 이번 실행 동안 한 번만 받는다."""
+    draws = lotto_stats.fetch_all()
+    return sorted(draws.items())
+
+
+def compose_combo(username, draw_no, genius=None, history=None):
+    """지역 없이 댓글만 단 사람 몫의 조합. 닉네임+회차로 뽑아서 같은 주엔 누가 다시 물어도 같다.
+    (답글 텍스트, 뽑힌 번호 6개) 튜플을 돌려준다 — 번호는 comment_picks.json에 남겨서
+    토요일 밤 채점이 "그 글 댓글들이 얼마나 맞혔는지"를 집계할 수 있게 한다.
+
+    genius가 주어지면 그 레시피(월~금 분석법 글, recipes.py)의 이번 주 후보 풀에서 뽑는다.
+    그 글은 본문에 번호를 싣지 않으므로, 번호가 사람에게 가는 길은 이 답글뿐이다.
+    """
+    if genius:
+        recipe = recipes.RECIPES_BY_ID[genius]
+        candidates, _ = recipes.analyze(recipe, history)
+        rng = lotto_gen.mulberry32(lotto_gen.hash_string(f"{draw_no}|recipe:{genius}|user:{username}"))
+        numbers = recipes.recipe_game(recipe, candidates, rng)
+        name = recipes.KOREAN_NAME[genius]
+        text = (
+            f"{username}아 {name} 분석으로 {draw_no}회 네 번호 뽑아왔어!\n{lotto_gen.fmt(numbers)}\n\n"
+            "네 닉네임으로 이번 주 후보 풀에서 하나 뽑은 거야. 이번 주엔 다시 물어봐도 같은 번호. "
+            "토요일 밤에 분석법별 성적 올리니까 거기서 확인해"
+        )
+        return text, numbers
+    numbers = lotto_gen.store_game(f"user:{username}", draw_no)
+    text = (
+        f"{username}아 {draw_no}회 네 조합 뽑아왔어!\n{lotto_gen.fmt(numbers)}\n\n"
         "닉네임으로 뽑은 거라 이번 주엔 다시 물어봐도 같은 번호야. "
         "다음 주 일요일에도 올리니까 그때 또 와"
     )
+    return text, numbers
+
+
+def record_comment_pick(draw_no, genius, username, numbers, reply_id):
+    """댓글로 나간 분석법 번호를 남긴다. lotto_picks.recipe_result가 토요일 밤에 이걸로 채점한다."""
+    picks = json.loads(COMMENT_PICKS.read_text(encoding="utf-8")) if COMMENT_PICKS.exists() else []
+    if any(p["reply_id"] == reply_id for p in picks):
+        return
+    picks.append({
+        "draw": draw_no,
+        "recipe": genius,
+        "username": username,
+        "numbers": numbers,
+        "reply_id": reply_id,
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+    })
+    COMMENT_PICKS.write_text(json.dumps(picks, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 # 댓글에서 번호 6개를 읽는다. "3 11 24 32 37 45", "3,11,24,32,37,45", "03-11-24..." 다 받는다.
@@ -210,6 +254,7 @@ def main():
 
     sent = 0
     draws = None  # 번호 댓글이 올 때만 받는다(1MB)
+    history = None  # 분석법 댓글(genius)이 올 때만 받는다. 이번 실행 동안 한 번만.
     today_total = 0  # 오늘 내가 단 답글 수. 대상 글들의 conversation을 세어 알아낸다(상태 파일 없음)
     for post in targets(queue, now):
         if sent >= RUN_CAP:
@@ -253,16 +298,23 @@ def main():
                 kind, value = match(item["text"], keys)
                 msg = compose(kind, value, item["username"], replies, followup_ok)
             # 조합 글은 지역을 말하지 않은 댓글에도 답한다. 내 답글에 달린 댓글엔 또 답하지 않는다(무한 핑퐁 방지).
+            combo_numbers = None
             if not msg and post.get("reply_mode") == "combo" and followup_ok:
-                msg = compose_combo(item["username"], draw_no)
+                genius = post.get("genius")
+                if genius and history is None:
+                    history = recipe_history()
+                msg, combo_numbers = compose_combo(item["username"], draw_no, genius, history)
             if not msg:
                 continue
             try:
-                send(msg, item["id"])
+                reply_id = send(msg, item["id"])
                 sent += 1
             except Exception as e:
                 print(e, file=sys.stderr)
                 telegram(f"⚠️ 자동 답글 실패\n{item['id']}\n{e}")
+                continue
+            if post.get("genius") and combo_numbers:
+                record_comment_pick(draw_no, post["genius"], item["username"], combo_numbers, reply_id)
 
     print(f"답글 {sent}건")
     return 0
