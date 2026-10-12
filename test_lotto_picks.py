@@ -179,6 +179,7 @@ def test_recipe_ranking_from_comment_picks():
     assert "아르키메데스  2명 중 0명 등수권·최고0개" in result_text
     assert "피보나치  1명 중 1명 등수권·최고6개" in result_text
     assert "이번 주 분석법 1위: 피보나치" in result_text
+    assert "순위는 회차마다 뒤집힘" in result_text and "확률을 바꾸진 않음" in result_text
     assert "누적 1위: 피보나치 1" in result_text
 
     week = picks["1244"]

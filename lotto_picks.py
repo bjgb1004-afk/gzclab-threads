@@ -346,6 +346,10 @@ def build_result_post(draw_no, numbers, bonus, store_score, by_recipe, table, we
                 lines.append(f"{recipes.KOREAN_NAME[rid]}  {r['entries']}명 중 {r['ranked']}명 등수권·최고{r['best']}개")
         win_names = " · ".join(recipes.KOREAN_NAME[rid] for rid in win_ids)
         lines.append(f"이번 주 분석법 1위: {win_names}" + (" (공동)" if len(win_ids) > 1 else ""))
+        # 1회차 표본은 거칠다(5게임이면 회차당 기대 적중 0.8개) — "1위니까 다음 주도 X"로
+        # 읽히면 안 된다. ruflo-starter-63 지적: 순위는 매주 뒤집히고 확률은 안 바뀐다는 걸
+        # 같은 글에 못 박는다.
+        lines.append("순위는 회차마다 뒤집힘 — 어느 분석법도 확률을 바꾸진 않음.")
     else:
         lines.append("이번 주는 분석법 댓글 번호가 없어서 분석법 순위는 없음")
     if table:
