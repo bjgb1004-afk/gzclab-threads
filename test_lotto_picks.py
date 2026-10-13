@@ -94,7 +94,7 @@ def test_full_week():
     calls = sandbox()
     lp.fetch_winning = lambda draw: WIN if draw == 1244 else None
 
-    # 월~금 00:07 이후, 토 17:07(20시 판매 마감). 일요일에는 아무것도 안 올라간다.
+    # 월~토 00:07 이후(20시 판매 마감). 일요일에는 아무것도 안 올라간다.
     for day in range(28, 31):
         assert lp.run_auto(at(2026, 9, day, 23), dry=False) == 0
     for day in range(1, 3):
@@ -325,9 +325,9 @@ def test_pick_times_weekday_midnight_saturday_afternoon():
     assert lp.run_auto(at(2026, 10, 5, 0, 7), dry=False) == 0  # 월 00:07
     assert len([1 for t, r in calls["posts"] if r is None]) == 1
     n = len(calls["posts"])
-    assert lp.run_auto(at(2026, 10, 10, 16), dry=False) == 0  # 토 16:07 — 아직
+    assert lp.run_auto(at(2026, 10, 10, 0, 5), dry=False) == 0  # 토 00:05 — 아직
     assert len(calls["posts"]) == n
-    assert lp.run_auto(at(2026, 10, 10, 17), dry=False) == 0  # 토 17:07
+    assert lp.run_auto(at(2026, 10, 10, 0, 7), dry=False) == 0  # 토 00:07
     assert len(calls["posts"]) > n
 
 
