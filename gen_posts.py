@@ -17,6 +17,7 @@ import json
 import pathlib
 
 import lotto_gen as g
+import recipes
 import replay as rp
 
 QUEUE = pathlib.Path(__file__).with_name("queue.json")
@@ -207,16 +208,25 @@ def t_number(seed, draws):
     ), None
 
 
+ANALYSIS_HOW = {
+    "archimedes": "전체출현 40·최근 100회 30·미출현기간 20·구간균형 10(%)로 점수를 매겨 45개 번호를 15개로 좁힘",
+    "fibonacci": "피보나치수 근접 25·전체출현 30·최근 50회 20·미출현 10·구간균형 15(%)로 점수를 매겨 15개로 좁힘",
+    "pascal": "번호는 좁히지 않고 홀짝·저고·합계 모양으로만 조합을 거름",
+    "euler": "전체출현 35·최근 50회 25·나머지그룹균형 20·서로소비율 20(%)로 점수를 매겨 15개로 좁힘",
+    "gaussian": "번호마다 출현횟수가 기대치에서 몇 표준편차 벗어났는지 재서 0에 가까운 순으로 15개를 고름",
+}
+
+
 def t_genius(seed, draws):
-    who = pick(g.GENIUSES, seed)
+    rid = pick(recipes.ORDER, seed)
     body = (
-        who["how"] + ".\n"
-        "월 아르키메데스 / 화 피보나치 / 수 파스칼 / 목 오일러 / 금 가우스, 토요일은 명당 번호."
+        ANALYSIS_HOW[rid] + ".\n"
+        "월 아르키메데스 / 화 피보나치 / 수 파스칼 / 목 오일러 / 금 가우시안, 토요일은 명당 번호."
     )
     return compose(
-        f"매일 저녁 5시에 올리는 천재 번호 — {who['name']}",
-        [body, "회차랑 이름이 정해지면 번호도 하나로 고정됨. 앱에서 뽑은 거랑 한 자도 안 틀림."],
-        "토요일마다 그 주 번호 전부 채점해서 올림. 맞은 것만 골라 올리는 거 아님.",
+        f"월~금 매일 분석법 하나씩 — {recipes.KOREAN_NAME[rid]}",
+        [body, "번호는 본문에 없고, 댓글 남기면 닉네임으로 1게임씩 답으로 줌."],
+        "토요일 밤에 댓글로 나간 번호까지 모아서 분석법별 성적 올림. 맞은 것만 골라 올리는 거 아님.",
         seed,
     ), None
 

@@ -94,11 +94,12 @@ def test_full_week():
     calls = sandbox()
     lp.fetch_winning = lambda draw: WIN if draw == 1244 else None
 
-    # 월~토 17:07. 일요일에는 아무것도 안 올라간다.
+    # 월~금 23:07, 토 17:07(20시 판매 마감). 일요일에는 아무것도 안 올라간다.
     for day in range(28, 31):
-        assert lp.run_auto(at(2026, 9, day, 17), dry=False) == 0
-    for day in range(1, 4):
-        assert lp.run_auto(at(2026, 10, day, 17), dry=False) == 0
+        assert lp.run_auto(at(2026, 9, day, 23), dry=False) == 0
+    for day in range(1, 3):
+        assert lp.run_auto(at(2026, 10, day, 23), dry=False) == 0
+    assert lp.run_auto(at(2026, 10, 3, 17), dry=False) == 0
     bodies = [t for t, reply in calls["posts"] if reply is None]
     assert len(bodies) == 6, len(bodies)
     assert "월요일의 분석: 아르키메데스" in bodies[0]
@@ -314,3 +315,54 @@ if __name__ == "__main__":
             fn()
             print(f"ok {name}")
     publish.publish, publish.telegram, lp.fetch_winning = real_publish, real_telegram, real_fetch
+
+
+def test_pick_times_weekday_night_saturday_afternoon():
+    calls = sandbox()
+    lp.fetch_winning = lambda draw: None
+    assert lp.run_auto(at(2026, 10, 5, 17), dry=False) == 0  # 월 17:07 — 아직 안 올림
+    assert not calls["posts"]
+    assert lp.run_auto(at(2026, 10, 5, 23), dry=False) == 0  # 월 23:07
+    assert len([1 for t, r in calls["posts"] if r is None]) == 1
+    n = len(calls["posts"])
+    assert lp.run_auto(at(2026, 10, 10, 16), dry=False) == 0  # 토 16:07 — 아직
+    assert len(calls["posts"]) == n
+    assert lp.run_auto(at(2026, 10, 10, 17), dry=False) == 0  # 토 17:07
+    assert len(calls["posts"]) > n
+
+
+def test_grade_post_masks_names_and_asks_for_next_draw():
+    calls = sandbox()
+    win, bonus = [4, 5, 25, 28, 32, 42], 12
+    lp.fetch_winning = lambda draw: (win, bonus)
+    items = [{"username": "gzclab", "text": f"{u}아 1245회 네 조합 뽑아왔어!\n{g.fmt(n)}\n\n닉네임으로"}
+             for u, n in (("m_j000n", [4, 5, 16, 19, 25, 42]), ("siri__babyyy", [5, 17, 20, 32, 42, 45]),
+                          ("nobody", [1, 2, 3, 6, 7, 8]))]
+    items.append({"username": "someone", "text": "댓글"})
+    lp.conversation_all = lambda media_id, token: items
+    publish.TOKEN = "x"
+    lp.save(lp.QUEUE, [{"id": "picks-1245-stats", "post_id": "S", "status": "published"}])
+    now = at(2026, 10, 14, 1, 0)
+    assert lp.run_grade(now, dry=False, draw_no=1245) == 0
+    text = calls["posts"][0][0]
+    assert "3게임 채점 결과" in text and "4등 1게임 · 5등 1게임 (1~3등은 없음)" in text
+    assert "m_j***님" in text and "m_j000n" not in text and "sir***" in text and "siri__" not in text
+    assert "1246회 번호 1게임 뽑아서 답 달아줌" in text.split("\n")[1]
+    assert len(text) <= lp.LIMIT
+    entry = [p for p in lp.load(lp.QUEUE, []) if p["id"] == "picks-1245-grade"][0]
+    assert entry["reply_mode"] == "combo" and entry["draw"] == 1246
+    # 두 번째 호출은 아무것도 올리지 않는다
+    assert lp.run_grade(now, dry=False, draw_no=1245) == 0
+    assert len(calls["posts"]) == 1
+
+
+def test_grade_one_off_runs_after_1am_only():
+    calls = sandbox()
+    lp.fetch_winning = lambda draw: ([4, 5, 25, 28, 32, 42], 12)
+    lp.conversation_all = lambda m, t: [{"username": "gzclab", "text": "a아 x\n04 05 16 19 25 42"}]
+    publish.TOKEN = "x"
+    lp.save(lp.QUEUE, [{"id": "picks-1245-stats", "post_id": "S", "status": "published"}])
+    lp.run_auto(at(2026, 10, 14, 0, 50), dry=False)
+    assert not any("채점 결과" in t for t, _ in calls["posts"])
+    lp.run_auto(at(2026, 10, 14, 1, 5), dry=False)
+    assert any("채점 결과" in t for t, _ in calls["posts"])

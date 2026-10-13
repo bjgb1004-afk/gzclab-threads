@@ -21,17 +21,21 @@ published로 기록해서 collect_insights와 auto_reply가 그대로 집어가�
       python lotto_picks.py daily [--dry]   (오늘 번호 글)
       python lotto_picks.py result [--dry]  (직전 회차 채점)
       python lotto_picks.py stats [--dry]   (다음 회차 흐름 정리. 일요일 18시)
+      python lotto_picks.py grade [--dry] [--draw 1245]  (흐름 정리 글 댓글 번호 채점. 일요일 10시)
       --now 2026-10-05T17:07:00+09:00      (시각 지정, 점검용)
       --draw 1244                           (result 회차 지정)
 """
 
 import datetime
+import itertools
 import json
 import pathlib
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
+import collections
 
 import lotto_gen as g
 import lotto_stats
@@ -71,7 +75,7 @@ FOLLOWS = (
     "팔로우하면 수학천재들 번호가 매일 뜸.",
     "토요일 밤에 채점 결과 올라옴. 놓치기 싫으면 팔로우.",
     "누가 제일 많이 맞히는지 보려면 팔로우해두면 됨.",
-    "매일 저녁 5시에 올림. 팔로우하면 안 찾아와도 뜸.",
+    "매일 밤 11시에 올림. 팔로우하면 안 찾아와도 뜸.",
     "지난주 순위는 토요일 글에 다 있음. 이어서 볼 사람은 팔로우.",
 )
 
@@ -87,7 +91,8 @@ STORE_MIN_WINS = 10  # 토요일 명당 후보: 그 구 1위이면서 1등 10회
 SAT_CUTOFF_HOUR = 20  # 토요일 20시 판매 마감. 그 뒤에 명당 번호를 올리면 살 수가 없다
 # 번호 글 KST 발행 시각. 예전엔 cron이 이 시각을 정했지만 지금은 tick.py 루프가 5분마다
 # 물어보므로, 시각 판단이 여기 있어야 한다. 없으면 자정 직후 첫 틱에 그날 글이 나간다.
-PICK_TIME = (17, 7)
+PICK_TIME = (23, 7)  # 월~금. 2026-10-13 변경: 17~21시대 도달이 약하고 23~01시대가 강했다(queue.json 실측, 표본 적음 — 1주 뒤 재비교)
+SAT_PICK_TIME = (17, 7)  # 토요일은 20시 판매 마감 때문에 낮에 올려야 한다
 RESULT_GIVE_UP = (6, 11)  # (일요일, 11시) KST 이후에도 당첨번호가 없으면 알린다
 
 
@@ -162,48 +167,73 @@ def _candidates_line(candidates):
     return " ".join(f"{n:02d}" for n in sorted(candidates))
 
 
-def _backtest_line(recipe, history):
-    bt = recipes.backtest_candidate_hits(recipe, history, rounds=BACKTEST_ROUNDS)
-    if not bt:
-        return None
-    return (f"최근 {bt['rounds']}회 검증: {bt['candidate_count']}개 안에 당첨번호 평균 "
-            f"{bt['mean_hits']:.2f}개(무작위면 {bt['expected_hits']:.2f}개)")
+WEIGHT_LABEL = {
+    "total": "전체출현", "recent": "최근{w}회출현", "gap": "미출현기간", "sector": "구간균형",
+    "fib": "피보나치근접", "mod_balance": "나머지그룹균형", "totient": "서로소비율φ(n)/n",
+}
+FILTER_TEXT = {
+    "archimedes": "합 100~175·홀짝/저고 2:4~4:2·3연속X",
+    "fibonacci": "간격 5개 중 3개↑가 피보나치수·합 100~175·3연속X",
+    "euler": "합 100~175·3연속X",
+    "gaussian": "합 평균138±1표준편차(109~167)·3연속X",
+    "pascal": "홀짝/저고 2:4~4:2·합 100~175",
+}
+
+
+def _filter_stats(recipe, candidates, history):
+    """후보 15개로 만들 수 있는 6개 조합 중 필터 통과 수 / 역대 당첨번호 중 필터 통과 비율."""
+    combos = list(itertools.combinations(sorted(candidates), recipes.PICK_COUNT))
+    passed = sum(1 for c in combos if recipes.passes_filters(c, **recipe["filters"]))
+    past = sum(1 for _, nums in history if recipes.passes_filters(nums, **recipe["filters"]))
+    return len(combos), passed, round(100 * past / len(history))
+
+
+def _group_counts(candidates, group_of, groups):
+    counts = [0] * groups
+    for n in candidates:
+        counts[group_of(n)] += 1
+    return "·".join(str(c) for c in counts)
 
 
 def _recipe_body(recipe_id, draw_no, history):
-    """레시피별 본문 가운데 줄들. (설명 줄들, meta용 추가 정보 없음)."""
+    """레시피별 본문 가운데 줄들 — 점수 구성 → 상위 번호 → 구간 배분 → 15개 → 조합 필터 순."""
     recipe = recipes.RECIPES_BY_ID[recipe_id]
     if recipe_id == "pascal":
         shape = recipes.count_combinations_by_shape(**recipe["filters"])
         shape33 = recipes.count_combinations_by_shape(odd_even={(3, 3)})
+        total = recipes.total_combinations()
+        _, _, past = _filter_stats(recipe, range(1, 16), history)
         return [
-            "45개 번호를 좁히지 않고 조합의 '모양'만 고른다 — 조합론엔 \"어느 번호가 유망한가\"의 답이 없다",
-            "홀짝·저고(1~22/23~45) 모두 2:4·3:3·4:2만, 합 100~175인 조합만 남김",
-            f"전체 {recipes.total_combinations():,}가지 중 이 모양 통과분 {shape:,}개"
-            f"({100 * shape / recipes.total_combinations():.1f}%) — 홀짝 3:3만 보면 {shape33:,}개",
+            "45개 번호는 그대로 두고 조합의 '모양'만 거른다 — 조합론엔 \"어느 번호가 유망한가\"의 답이 없음",
+            f"거르는 기준: {FILTER_TEXT['pascal']}",
+            f"전체 {total:,}가지 중 통과 {shape:,}개({100 * shape / total:.1f}%) — 홀짝 3:3만 보면 {shape33:,}개",
+            f"역대 당첨번호 {len(history):,}회 중 {past}%가 이 모양을 통과",
         ]
 
-    candidates, _ = recipes.analyze(recipe, history)
-    method = {
-        "archimedes": "전체출현40%·최근100회출현30%·미출현기간20%·구간균형10%로 점수 매겨 구간당 최대 3개씩 15개로 압축",
-        "fibonacci": "피보나치수(1·2·3·5·8·13·21·34)근접25%·전체출현30%·최근50회출현20%·미출현10%·구간균형15%로 점수 매겨 구간당 최대 3개씩 15개로 압축",
-        "euler": "전체출현35%·최근50회출현25%·나머지그룹(5로나눈나머지)균형20%·서로소비율φ(n)/n 20%로 점수 매겨 그룹당 최대 4개씩 15개로 압축",
-        "gaussian": "번호마다 출현횟수가 이론 기대치에서 몇 표준편차(z) 떨어졌는지 재서 0에 가까운 걸 앞에 둠 — 구간당 최대 3개씩 15개로 압축",
-    }[recipe_id]
-    combo_filter = {
-        "archimedes": "6개 뽑을 땐 합 100~175·홀짝·저고(1~22/23~45) 모두 2:4·3:3·4:2만·3연속 제외",
-        "fibonacci": "6개 뽑을 땐 번호 간격 5개 중 3개 이상이 피보나치 수·합 100~175·3연속 제외",
-        "euler": "6개 뽑을 땐 합 100~175·3연속 제외",
-        "gaussian": "6개 뽑을 땐 합계가 평균138 ±1표준편차(109~167)·3연속 제외",
-    }[recipe_id]
-    lines = [method, combo_filter, f"이번 주 {len(candidates)}개: {_candidates_line(candidates)}"]
-    bt = _backtest_line(recipe, history)
-    if bt:
-        lines.append(bt)
+    candidates, scores = recipes.analyze(recipe, history)
+    top3 = sorted(scores, key=lambda n: (-scores[n], n))[:3]
+    top3_text = "·".join(f"{n}번" for n in top3)
+    if recipe_id == "gaussian":
+        score_line = "번호별 출현횟수가 기대치에서 몇 표준편차(z) 벗어났는지 재서 0에 가까운 순"
+    else:
+        parts = sorted(recipe["weights"].items(), key=lambda kv: -kv[1])
+        score_line = "점수 = " + "·".join(
+            WEIGHT_LABEL[k].format(w=recipe["recent_window"]) + f"{round(v * 100)}" for k, v in parts) + "(%)"
+    if recipe.get("mod_group_cap") is not None:
+        spread = f"5로 나눈 나머지 그룹당 최대 {recipe['mod_group_cap']}개 → 그룹별 {_group_counts(candidates, lambda n: n % 5, 5)}"
+    else:
+        spread = f"6구간당 최대 {recipe['sector_cap']}개 → 구간별 {_group_counts(candidates, recipes.sector_index_of, 6)}"
+    combos, passed, past = _filter_stats(recipe, candidates, history)
+    lines = [
+        score_line,
+        f"점수 상위 {top3_text} / {spread}",
+        f"이번 주 {len(candidates)}개: {_candidates_line(candidates)}",
+        f"6개 조합 필터: {FILTER_TEXT[recipe_id]}",
+        f"{len(candidates)}개로 만든 {combos:,}조합 중 {passed:,}개 통과 · 역대 당첨번호는 {past}%가 통과",
+    ]
     if recipe_id == "gaussian":
         sd = recipes.sum_distribution_stats(history, recipe["filters"]["sum_range"])
-        lines.append(f"합계 실측({sd['n']:,}회): 평균{sd['mean']:.1f}·표준편차{sd['std']:.1f}, "
-                     f"밴드 안 {100 * sd['within_ratio']:.0f}%(이론 68%)")
+        lines.append(f"합계 실측({sd['n']:,}회): 평균{sd['mean']:.1f}·표준편차{sd['std']:.1f}, 밴드 안 {100 * sd['within_ratio']:.0f}%(이론 68%)")
     return lines
 
 
@@ -213,12 +243,12 @@ def build_recipe_post(recipe_id, day, draw_no, history):
     name = recipes.KOREAN_NAME[recipe_id]
     head = [
         f"[{draw_no}회] {DAY_KO[day]}요일의 분석: {name}",
+        COMBO_ASK.format(draw=draw_no),  # 접힘 앞(둘째 줄) — 1244주 화·수 댓글 20·30개 구조
         FOLLOWS[idx % len(FOLLOWS)],
-        COMBO_ASK.format(draw=draw_no),
         "",
         *_recipe_body(recipe_id, draw_no, history),
     ]
-    foot = ["", "토요일 밤에 댓글로 나간 번호까지 모아서 분석법별 성적 올림."]
+    foot = ["", "토요일 밤에 댓글로 나간 번호까지 모아서 분석법별 성적 올림. 도움 됐으면 리포스트."]
     text = "\n".join(head + foot)
     assert len(text) <= LIMIT, f"{recipe_id} 글 {len(text)}자"
     return text, [], {"kind": "method", "genius": recipe_id}
@@ -559,6 +589,126 @@ def run_result(now, dry, draw_no=None):
     return 0
 
 
+# ---------- 흐름 정리 글 댓글 번호 채점 글 ----------
+# 흐름 정리 글(일요일 저녁) 댓글로 나간 번호를 그 회차 추첨 뒤 한 번 채점해서 올린다. 같은 글에
+# "댓글 남기면 번호 1게임" 구조(combo)를 붙여 다음 회차 홍보를 겸한다. 채점만 올린 글(result)은
+# 도달이 300~900이었고 댓글 구조 글만 댓글이 터졌다. 번호는 분석법이 아니라 닉네임 시드 무작위
+# 조합(lotto_gen.store_game)이다 — 글에 분석법 성적처럼 쓰지 않는다. 닉네임은 앞만 남기고 가린다.
+GRADE_HOUR = 10  # 일요일 10시(KST) 이후, 직전 회차 흐름 정리 글 댓글 번호를 채점
+GRADE_ONE_OFF = {1245: datetime.datetime(2026, 10, 14, 1, 0, tzinfo=g.KST)}  # 이번 주분만 새벽 1시
+_REPLY_NUMS = re.compile(r"((?:\d{2}[ ,·]+){5}\d{2})")
+
+
+def conversation_all(media_id, token):
+    """글의 댓글 전체(페이지를 끝까지 따라간다). auto_reply.conversation은 첫 페이지만 본다."""
+    url = (f"{publish.API}/{media_id}/conversation?fields=id,text,username&limit=100"
+           f"&access_token={urllib.parse.quote(token)}")
+    items = []
+    for _ in range(30):
+        with urllib.request.urlopen(url, timeout=30) as r:
+            j = json.load(r)
+        items += j.get("data", [])
+        url = j.get("paging", {}).get("next")
+        if not url:
+            break
+    return items
+
+
+def comment_games(items, me="gzclab"):
+    """내 답글에서 (닉네임, 번호 6개)를 읽는다."""
+    games = []
+    for i in items:
+        if i.get("username") != me or not i.get("text"):
+            continue
+        m = _REPLY_NUMS.search(i["text"])
+        if not m:
+            continue
+        nums = sorted(int(x) for x in re.findall(r"\d{2}", m.group(1)))
+        if len(nums) == 6:
+            games.append((i["text"].split("아 ")[0], nums))
+    return games
+
+
+def mask_name(name):
+    return (name[:3] if len(name) > 4 else name[:1]) + "***"
+
+
+def build_grade_post(draw_no, next_draw, games, win, bonus):
+    dist = collections.Counter(len(set(nums) & set(win)) for _, nums in games)
+    winners = collections.defaultdict(list)
+    for name, nums in games:
+        rank = rank_of(nums, win, bonus)
+        if rank:
+            winners[rank].append((name, nums, len(set(nums) & set(win))))
+    ranks = " · ".join(f"{r}등 {len(winners[r])}게임" for r in sorted(winners)) or "당첨(5등 이상) 없음"
+    if winners and not any(r in winners for r in (1, 2, 3)):
+        ranks += " (1~3등은 없음)"
+
+    def compose(with_names=True, with_dist=True):
+        lines = [
+            f"{draw_no}회 흐름 정리 댓글로 나간 번호 {len(games)}게임 채점 결과",
+            COMBO_ASK.format(draw=next_draw),
+            "",
+            ranks,
+            f"당첨번호 {g.fmt(win)}",
+        ]
+        if with_dist:
+            lines += ["", "일치 개수별", " · ".join(f"{h}개 {dist[h]}" for h in sorted(dist))]
+        if with_names and winners:
+            lines.append("")
+            for r in sorted(winners):
+                if r <= 4:
+                    for name, nums, hit in winners[r]:
+                        lines.append(f"{r}등: {mask_name(name)}님 ({g.fmt(nums)}, {hit}개 일치)")
+                else:
+                    lines.append(f"{r}등: " + ", ".join(mask_name(n) for n, _, _ in winners[r]))
+        lines += ["", "맞은 것만 골라 올린 거 아님. 나간 번호 전부 채점함."]
+        return "\n".join(lines)
+
+    for kw in ({}, {"with_dist": False}, {"with_names": False}, {"with_names": False, "with_dist": False}):
+        text = compose(**kw)
+        if len(text) <= LIMIT:
+            return text
+    raise AssertionError("채점 글이 500자를 넘음")
+
+
+def run_grade(now, dry, draw_no):
+    """draw_no회 흐름 정리 글 댓글 번호를 채점해서 올린다. 회차당 한 번."""
+    queue = load(QUEUE, [])
+    src = next((p for p in queue if p["id"] == f"picks-{draw_no}-stats" and p.get("post_id")), None)
+    if not src:
+        print(f"{draw_no}회 흐름 정리 글 기록 없음 — 채점 글 건너뜀")
+        return 0
+    if load(PICKS, {}).get(str(draw_no), {}).get("stats", {}).get("grade_post_id"):
+        return 0
+    win = fetch_winning(draw_no)
+    if not win:
+        print(f"{draw_no}회 당첨번호가 아직 미러에 없음")
+        return 0
+    numbers, bonus = win
+    games = comment_games(conversation_all(src["post_id"], publish.TOKEN))
+    if not games:
+        print(f"{draw_no}회 흐름 정리 글에서 읽은 번호가 없음")
+        return 0
+    text = build_grade_post(draw_no, g.upcoming_draw_no(now), games, numbers, bonus)
+    if dry:
+        print(text)
+        print(f"--- {len(text)}자")
+        return 0
+    try:
+        post_id = publish.publish(text)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        publish.telegram(f"❌ {draw_no}회 흐름 정리 댓글 채점 글 발행 실패\n{e}")
+        raise
+    picks = load(PICKS, {})
+    picks.setdefault(str(draw_no), {"days": {}}).setdefault("stats", {})["grade_post_id"] = post_id
+    save(PICKS, picks)
+    record_in_queue(f"picks-{draw_no}-grade", text, post_id, g.upcoming_draw_no(now), reply_mode="combo")
+    publish.telegram(f"📊 {draw_no}회 흐름 정리 댓글 채점 글 발행됨")
+    return 0
+
+
 STATS_HOUR = 18  # 일요일 18시 이후 흐름 정리 글
 STATS_GIVE_UP_HOUR = 20  # 이때도 지난 회차 번호가 미러에 없으면 알린다
 
@@ -602,12 +752,18 @@ def run_auto(now, dry):
     local = kst(now)
     wd = local.weekday()
     code = 0
-    if (local.hour, local.minute) >= PICK_TIME and (wd <= 4 or (wd == 5 and local.hour < SAT_CUTOFF_HOUR)):
+    pick_time = SAT_PICK_TIME if wd == 5 else PICK_TIME
+    if wd <= 5 and (local.hour, local.minute) >= pick_time and (wd <= 4 or local.hour < SAT_CUTOFF_HOUR):
         code |= run_daily(now, dry)
     if (wd == 5 and local.hour >= 21) or wd == 6:
         code |= run_result(now, dry)
     if wd == 6 and local.hour >= STATS_HOUR:
         code |= run_stats(now, dry)
+    if wd == 6 and local.hour >= GRADE_HOUR:
+        code |= run_grade(now, dry, g.upcoming_draw_no(now) - 1)
+    for d, when in GRADE_ONE_OFF.items():
+        if local >= when:
+            code |= run_grade(now, dry, d)
     return code
 
 
@@ -625,6 +781,8 @@ def main(argv):
         return run_result(now, dry, draw)
     if mode == "stats":
         return run_stats(now, dry)
+    if mode == "grade":
+        return run_grade(now, dry, draw or g.upcoming_draw_no(now) - 1)
     if mode == "auto":
         return run_auto(now, dry)
     print(__doc__)
