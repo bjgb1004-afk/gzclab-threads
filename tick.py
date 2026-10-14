@@ -26,7 +26,10 @@ from publish import telegram
 KST = datetime.timezone(datetime.timedelta(hours=9))
 QUEUE = pathlib.Path(__file__).with_name("queue.json")
 # publish.py의 슬롯(am/pm/night)이 실제로 나가야 하는 KST 시각. :07은 정각 혼잡 회피.
-SLOTS = ((7, 7), (12, 7), (21, 7))
+# 아침 슬롯은 9:07이다 — 7:07은 번호 글(lotto_picks.PICK_TIME)과 같은 틱에 걸려서 같은
+# 계정에서 두 글이 몇 분 차로 나갔다(2026-10-14 번호 글을 7시로 옮기며 비킴). 9시도
+# publish.current_slot()의 am(10시 전)이라 아침 지역 글은 그대로 아침에 나간다.
+SLOTS = ((9, 7), (12, 7), (21, 7))
 
 
 def due_slot_start(queue, now):

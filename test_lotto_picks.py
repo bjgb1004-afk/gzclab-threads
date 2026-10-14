@@ -124,8 +124,14 @@ def test_full_week():
     assert week["days"]["mon"]["games"] == [] and "score" not in week["days"]["mon"]
     assert week["recipe_result"]["winners"] == []
     result_text = [t for t, reply in calls["posts"] if reply is None][-1]
-    assert result_text.startswith("[1244회 결과] 03 18 19 27 40 44 + 보너스 38")
+    # 첫 줄은 당첨번호가 아니라 그 주 성적(후킹), 번호는 그 아래 블록으로 내려간다.
+    assert result_text.startswith("[1244회 채점] ")
+    assert "당첨번호 03 18 19 27 40 44 + 보너스 38" in result_text
     assert "토요일 명당 5게임" in result_text
+    # 댓글 질문이 결과 글에 몰려 있다: 접힘 앞 둘째 줄 + 맺음말 앞 한 줄
+    assert "1245회 번호 1게임 뽑아서 답 달아줌" in result_text.split("\n")[1]
+    assert any(qn in result_text for qn in lp.RESULT_QUESTIONS)
+    assert [p for p in lp.load(lp.QUEUE, []) if p["id"] == "picks-1244-result"][0]["reply_mode"] == "combo"
     assert "분석법 댓글 번호가 없어서" in result_text
     assert len(result_text) <= lp.LIMIT
 
@@ -176,10 +182,11 @@ def test_recipe_ranking_from_comment_picks():
     assert picks["1244"]["recipe_result"]["winners"] == ["fibonacci"]
 
     result_text = [t for t, r in calls["posts"] if r is None][-1]
-    assert "월~금 분석법 댓글 3명 채점" in result_text
+    # 후킹 첫 줄이 그 주 숫자를 그대로 쓴다(댓글 3개 중 1개 등수권).
+    assert result_text.startswith("[1244회 채점] 댓글로 나간 번호 3개 중 1개가 등수권에 들었습니다.")
     assert "아르키메데스  2명 중 0명 등수권·최고0개" in result_text
     assert "피보나치  1명 중 1명 등수권·최고6개" in result_text
-    assert "이번 주 분석법 1위: 피보나치" in result_text
+    assert "이번 주 1위: 피보나치" in result_text
     assert "순위는 회차마다 뒤집힘" in result_text and "확률을 바꾸진 않음" in result_text
     assert "누적 1위: 피보나치 1" in result_text
 
@@ -317,17 +324,18 @@ if __name__ == "__main__":
     publish.publish, publish.telegram, lp.fetch_winning = real_publish, real_telegram, real_fetch
 
 
-def test_pick_times_weekday_midnight_saturday_afternoon():
+def test_pick_times_weekday_and_saturday_morning():
+    """월~토 아침 7:07 발행(2026-10-14 유저 결정). 그 전 틱에는 아무것도 올리지 않는다."""
     calls = sandbox()
     lp.fetch_winning = lambda draw: None
-    assert lp.run_auto(at(2026, 10, 5, 0, 5), dry=False) == 0  # 월 00:05 — 아직 안 올림
+    assert lp.run_auto(at(2026, 10, 5, 7, 5), dry=False) == 0  # 월 07:05 — 아직 안 올림
     assert not calls["posts"]
-    assert lp.run_auto(at(2026, 10, 5, 0, 7), dry=False) == 0  # 월 00:07
+    assert lp.run_auto(at(2026, 10, 5, 7, 7), dry=False) == 0  # 월 07:07
     assert len([1 for t, r in calls["posts"] if r is None]) == 1
     n = len(calls["posts"])
-    assert lp.run_auto(at(2026, 10, 10, 0, 5), dry=False) == 0  # 토 00:05 — 아직
+    assert lp.run_auto(at(2026, 10, 10, 7, 5), dry=False) == 0  # 토 07:05 — 아직
     assert len(calls["posts"]) == n
-    assert lp.run_auto(at(2026, 10, 10, 0, 7), dry=False) == 0  # 토 00:07
+    assert lp.run_auto(at(2026, 10, 10, 7, 7), dry=False) == 0  # 토 07:07
     assert len(calls["posts"]) > n
 
 

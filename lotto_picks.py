@@ -75,7 +75,7 @@ FOLLOWS = (
     "팔로우하면 수학천재들 번호가 매일 뜸.",
     "채점 결과 놓치기 싫으면 팔로우해두면 됨.",
     "누가 제일 많이 맞히는지 보려면 팔로우해두면 됨.",
-    "매일 자정에 올림. 팔로우하면 안 찾아와도 뜸.",
+    "매일 아침 7시에 올림. 팔로우하면 안 찾아와도 뜸.",
     "이 분석법들 매일 하나씩 올림. 이어서 볼 사람은 팔로우.",
 )
 
@@ -91,8 +91,8 @@ STORE_MIN_WINS = 10  # 토요일 명당 후보: 그 구 1위이면서 1등 10회
 SAT_CUTOFF_HOUR = 20  # 토요일 20시 판매 마감. 그 뒤에 명당 번호를 올리면 살 수가 없다
 # 번호 글 KST 발행 시각. 예전엔 cron이 이 시각을 정했지만 지금은 tick.py 루프가 5분마다
 # 물어보므로, 시각 판단이 여기 있어야 한다. 없으면 자정 직후 첫 틱에 그날 글이 나간다.
-PICK_TIME = (0, 7)  # 월~금 자정 직후(2026-10-13 유저 결정). 17~21시대 도달이 약하고 23~01시대가 강했다(queue.json 실측, 표본 적음 — 1주 뒤 재비교)
-SAT_PICK_TIME = (0, 7)  # 토요일도 자정 직후(2026-10-13 유저 결정). 20시 판매 마감 전이라 명당 번호로는 문제 없다
+PICK_TIME = (7, 7)  # 월~금 아침 7시(2026-10-14 유저 결정). 자정 직후(10-13~14)는 기대보다 도달이 낮았다 — 출근길 시간대로 옮겨 1~2주 비교한다
+SAT_PICK_TIME = (7, 7)  # 토요일도 아침 7시. 20시 판매 마감 한참 전이라 명당 번호로는 문제 없다
 RESULT_GIVE_UP = (6, 11)  # (일요일, 11시) KST 이후에도 당첨번호가 없으면 알린다
 
 
@@ -358,36 +358,79 @@ def recipe_standings(picks):
     return sorted(wins.items(), key=lambda kv: (-kv[1], kv[0]))
 
 
-def build_result_post(draw_no, numbers, bonus, store_score, by_recipe, table, weeks):
-    lines = [
-        f"[{draw_no}회 결과] {g.fmt(numbers)} + 보너스 {bonus:02d}",
-        ASKS[(draw_no + 1) % len(ASKS)],
-        "",
-    ]
+# 결과 글은 이 시리즈에서 유일하게 예측이 아니라 검증이다. 사람들은 예측보다 결과를 보므로
+# 후킹 문장과 댓글 질문을 월~금 발행 글이 아니라 이 글에 몰아준다(2026-10-14 유저 결정).
+# 첫 줄은 당첨번호가 아니라 그 주 성적 중 가장 구체적인 숫자다 — 번호는 둘째 블록으로 내린다.
+# 질문은 요일이 아니라 회차로 돌린다(결과 글은 주 1회라 매번 다른 질문이 나간다).
+RESULT_QUESTIONS = (
+    "너는 이번 주 몇 개 맞았어? 댓글에 적어줘.",
+    "다음 주는 다섯 분석법 중 어디에 걸래? 댓글에 하나만 적어줘.",
+    "이번 주 번호 받아간 사람 결과 어땠어? 댓글에 적어줘.",
+    "이 채점 글, 매주 올리는 게 나아? 댓글에 적어줘.",
+)
+
+
+def _result_hook(by_recipe, store_score):
+    """첫 줄. 그 주 숫자에서 나온 사실만 쓴다 — 없는 성과를 쓰면 다음 주 숫자가 반박한다."""
+    total = sum(r["entries"] for r in by_recipe.values())
+    ranked = sum(r["ranked"] for r in by_recipe.values())
+    bests = [r["best"] for r in by_recipe.values()]
     if store_score:
-        lines.append(f"토요일 명당 5게임  {summary(store_score)}")
+        bests.append(store_score["best"])
+    best = max(bests) if bests else 0
+    if ranked:
+        return f"댓글로 나간 번호 {total}개 중 {ranked}개가 등수권에 들었습니다."
+    if total and best >= 4:
+        return f"댓글 번호 {total}개, 당첨은 없고 제일 가까운 게 {best}개 일치였습니다."
+    if total:
+        return f"댓글 번호 {total}개 전부 등수권 밖이었습니다. 맞은 것만 골라 올리지 않습니다."
+    if store_score:
+        return f"이번 주는 명당 5게임만 채점했습니다. 최고 {store_score['best']}개 일치."
+    return "이번 주는 채점할 번호가 없었습니다."
+
+
+def build_result_post(draw_no, numbers, bonus, store_score, by_recipe, table, weeks):
+    # 이 글은 추첨 직후(토 21시~일)에만 나가므로 댓글 번호가 향하는 회차는 draw_no 다음이다.
+    next_draw = draw_no + 1
     win_ids = recipe_winners(by_recipe)
-    if by_recipe:
-        total = sum(r["entries"] for r in by_recipe.values())
-        lines.append(f"월~금 분석법 댓글 {total}명 채점")
-        for rid in recipes.ORDER:
-            if rid in by_recipe:
-                r = by_recipe[rid]
-                lines.append(f"{recipes.KOREAN_NAME[rid]}  {r['entries']}명 중 {r['ranked']}명 등수권·최고{r['best']}개")
-        win_names = " · ".join(recipes.KOREAN_NAME[rid] for rid in win_ids)
-        lines.append(f"이번 주 분석법 1위: {win_names}" + (" (공동)" if len(win_ids) > 1 else ""))
-        # 1회차 표본은 거칠다(5게임이면 회차당 기대 적중 0.8개) — "1위니까 다음 주도 X"로
-        # 읽히면 안 된다. ruflo-starter-63 지적: 순위는 매주 뒤집히고 확률은 안 바뀐다는 걸
-        # 같은 글에 못 박는다.
-        lines.append("순위는 회차마다 뒤집힘 — 어느 분석법도 확률을 바꾸진 않음.")
-    else:
-        lines.append("이번 주는 분석법 댓글 번호가 없어서 분석법 순위는 없음")
-    if table:
-        lines.append("누적 1위: " + " · ".join(f"{recipes.KOREAN_NAME[rid]} {n}" for rid, n in table))
-    lines.append(f"기록 {weeks}주째. 월~금은 분석법 과정만 쓰고 번호는 댓글로 줌. 이어서 볼 사람은 팔로우.")
-    text = "\n".join(lines)
-    assert len(text) <= LIMIT, f"결과 글 {len(text)}자 — {LIMIT}자 초과"
-    return text, win_ids
+
+    def compose(with_table=True, with_breakdown=True):
+        lines = [
+            f"[{draw_no}회 채점] " + _result_hook(by_recipe, store_score),
+            COMBO_ASK.format(draw=next_draw),  # 접힘 앞 둘째 줄 — 댓글이 여기서 터진다
+            "",
+            f"당첨번호 {g.fmt(numbers)} + 보너스 {bonus:02d}",
+        ]
+        if store_score:
+            lines.append(f"토요일 명당 5게임  {summary(store_score)}")
+        if by_recipe:
+            lines.append("")
+            if with_breakdown:
+                for rid in recipes.ORDER:
+                    if rid in by_recipe:
+                        r = by_recipe[rid]
+                        lines.append(
+                            f"{recipes.KOREAN_NAME[rid]}  {r['entries']}명 중 {r['ranked']}명 등수권·최고{r['best']}개")
+            win_names = " · ".join(recipes.KOREAN_NAME[rid] for rid in win_ids)
+            lines.append(f"이번 주 1위: {win_names}" + (" (공동)" if len(win_ids) > 1 else ""))
+            # 1회차 표본은 거칠다(5게임이면 회차당 기대 적중 0.8개) — "1위니까 다음 주도 X"로
+            # 읽히면 안 된다. 순위는 매주 뒤집히고 확률은 안 바뀐다는 걸 같은 글에 못 박는다.
+            lines.append("순위는 회차마다 뒤집힘 — 어느 분석법도 확률을 바꾸진 않음.")
+        else:
+            lines.append("이번 주는 분석법 댓글 번호가 없어서 분석법 순위는 없음")
+        if table and with_table:
+            lines.append("누적 1위: " + " · ".join(f"{recipes.KOREAN_NAME[rid]} {n}" for rid, n in table))
+        # 댓글 질문은 맨 끝이 아니라 맺음말 바로 앞 — 접힘을 연 사람이 마지막으로 보는 줄.
+        lines += ["", RESULT_QUESTIONS[draw_no % len(RESULT_QUESTIONS)],
+                  f"기록 {weeks}주째. 팔로우하면 매주 이 채점 글이 뜸."]
+        return "\n".join(lines)
+
+    # 분석법이 다섯 개 다 걸린 주엔 전체 포맷이 500자를 넘을 수 있다. 덜 중요한 줄부터 뺀다.
+    for kw in ({}, {"with_table": False}, {"with_table": False, "with_breakdown": False}):
+        text = compose(**kw)
+        if len(text) <= LIMIT:
+            return text, win_ids
+    raise AssertionError(f"결과 글 {len(text)}자 — {LIMIT}자 초과")
 
 
 def day_reply(draw_no, sc):
@@ -558,7 +601,10 @@ def run_result(now, dry, draw_no=None):
             raise
         week["result"].update({"post_id": post_id, "posted_at": utc_iso()})
         save(PICKS, picks)
-        record_in_queue(f"picks-{draw_no}-result", text, post_id, draw_no)
+        # reply_mode=combo: 결과 글에 댓글 질문을 몰아줬으니(2026-10-14) 지역을 말하지 않은
+        # 댓글에도 다음 회차 번호 1게임을 답으로 단다. genius는 넣지 않는다 — 이 글 댓글
+        # 번호는 특정 분석법 것이 아니라서 분석법 성적 집계에 섞이면 안 된다.
+        record_in_queue(f"picks-{draw_no}-result", text, post_id, draw_no, reply_mode="combo")
         try:
             publish.publish(f"{LINK_LEAD}\n{LINK}", reply_to=post_id)
         except Exception as e:

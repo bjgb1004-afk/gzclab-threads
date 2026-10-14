@@ -29,13 +29,15 @@ def q(*published_kst, status="pending", prefix="top5"):
 def test_slots():
     # 슬롯 전에는 아무것도 안 나간다.
     assert tick.due_slot_start(q(), at("2026-09-30T06:00")) is None
+    # 아침 슬롯은 9:07이다. 번호 글이 7:07에 나가므로 그 시각엔 슬롯 글이 안 나간다.
+    assert tick.due_slot_start(q(), at("2026-09-30T07:07")) is None
     # 슬롯 시각이 지났고 그 뒤 발행이 없으면 나간다.
-    assert tick.due_slot_start(q(), at("2026-09-30T07:07")) is not None
+    assert tick.due_slot_start(q(), at("2026-09-30T09:07")) is not None
     assert tick.due_slot_start(q(), at("2026-09-30T11:00")) is not None
     # 같은 슬롯에서 이미 나갔으면 다시 안 나간다 — 5분 루프가 슬롯을 도배하지 않는다.
-    assert tick.due_slot_start(q("2026-09-30T07:09"), at("2026-09-30T11:00")) is None
+    assert tick.due_slot_start(q("2026-09-30T09:09"), at("2026-09-30T11:00")) is None
     # 다음 슬롯이 오면 다시 나간다.
-    assert tick.due_slot_start(q("2026-09-30T07:09"), at("2026-09-30T12:07")) is not None
+    assert tick.due_slot_start(q("2026-09-30T09:09"), at("2026-09-30T12:07")) is not None
     # picks 글은 제 시각에 따로 나가므로 슬롯 발행을 대신하지 않는다.
     assert (
         tick.due_slot_start(q("2026-09-30T21:30", prefix="picks"), at("2026-09-30T21:40"))
