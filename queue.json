@@ -2156,7 +2156,14 @@
     "reply_mode": "replay",
     "post_id": "17901011319671666",
     "date": "2026-10-15",
-    "published_at": "2026-10-15T05:12:05+00:00"
+    "published_at": "2026-10-15T05:12:05+00:00",
+    "insights": {
+      "views": 406,
+      "likes": 5,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "auto-2026-10-15-night",
