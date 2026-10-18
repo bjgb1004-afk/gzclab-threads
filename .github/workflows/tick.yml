@@ -7,8 +7,26 @@ name: Tick
 # 댓글의 15%만 답했다. 크론 횟수를 늘려도 같은 비율로 씹히므로, 한 번 뜬 실행이 오래
 # 돌게 한다. 저장소가 public이라 Actions 분은 무제한이다.
 #
-# 이 실행이 끝나면 스스로 다음 실행을 띄운다(아래 마지막 스텝). 크론은 그 사슬이
-# 끊겼을 때를 위한 백업이다.
+# 다음 실행으로의 인계는 크론과 concurrency 큐가 한다. 루프가 도는 5시간 45분 동안
+# 크론이 계속 뜨고, 그 run들은 아래 concurrency group이 잡혀 있어 '대기'로 줄을 선다.
+# 줄에는 한 자리뿐이라 새 run이 오면 앞의 대기 run은 cancelled가 되고(실행은 안 했으므로
+# 러너 시간 0), 맨 마지막 대기 run이 앞 run이 끝나는 순간 시작한다. 2026-10-17~18 실측:
+# 09:18끝→09:18시작→15:05끝→15:05시작→20:53끝→20:53시작→02:40끝→02:40시작→08:28:01끝→08:28:03시작.
+# 32시간 동안 인계 공백 2초였다.
+#
+# run 목록의 cancelled는 실패가 아니다 — 위의 '줄 서다 교체된 대기 run'이다. 진단할 때
+# 실제로 돈 run만 보려면 cancelled를 빼고 봐야 한다(gh api .../runs/<id>/jobs 가 0이면 대기만 한 것).
+#
+# 예전엔 마지막에 PAT로 `gh workflow run`을 불러 다음 실행을 직접 띄웠다. 그 PAT(GH_PAT)는
+# 토큰 자동갱신용으로 `Secrets: Read and write` 하나만 주도록 일부러 좁게 만든 것이라
+# (SETUP.md) 워크플로를 띄울 권한이 없고, 매 실행 끝에서 403으로 조용히 실패하고 있었다
+# (`|| true`로 묻혔다). 위 실측대로 큐가 이미 인계를 하고 있으므로 그 스텝을 지웠다.
+# PAT에 Actions 권한을 더하는 쪽이 아니라 지우는 쪽을 택한 이유: 무기한 토큰의 권한을
+# 넓히지 않으려고.
+#
+# ponytail: 크론이 5시간 45분 내내 한 번도 안 뜨면 줄이 비어 루프가 끊긴다(그 창에 크론
+# 기회는 11번). 끊기면 다음 크론이 뜰 때까지 멈춘다. 실제로 공백이 생기기 시작하면
+# Actions 권한이 있는 별도 PAT나 GitHub App으로 체인 스텝을 되살리는 게 다음 단계다.
 on:
   schedule:
     - cron: "*/30 * * * *"
@@ -25,7 +43,7 @@ concurrency:
 jobs:
   tick:
     runs-on: ubuntu-latest
-    # 잡 상한은 6시간. 남는 15분은 마지막 커밋과 다음 실행 예약에 쓴다.
+    # 잡 상한은 6시간. 루프를 5시간 45분에서 끊어 마지막 커밋·푸시에 15분을 남긴다.
     timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
@@ -65,12 +83,3 @@ jobs:
             fi
             sleep 300
           done
-
-      # 다음 실행을 직접 띄운다. GITHUB_TOKEN으로는 워크플로가 트리거되지 않으므로 PAT를 쓴다.
-      # PAT가 없으면 조용히 넘어가고 30분 크론이 이어받는다.
-      - name: Chain next run
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          [ -n "$GH_TOKEN" ] && gh workflow run tick.yml --repo "$GITHUB_REPOSITORY" || true
