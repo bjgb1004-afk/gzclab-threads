@@ -265,6 +265,9 @@ def main():
             print(e, file=sys.stderr)
             telegram(f"⚠️ 댓글 조회 실패\n{post['id']}\n{e}")
             continue
+        # 사진·GIF만 달린 댓글은 text 필드가 아예 없이 온다. 하나만 섞여도 아래에서
+        # KeyError가 터져 그 틱의 답글 전체가 죽는다(2026-10-17~18, 하루치 답글 유실).
+        items = [{**i, "text": i.get("text", "")} for i in items]
 
         my_ids = {i["id"] for i in items if i["username"] == ME}
         # 하루 상한은 오늘 내가 이미 단 답글 수로 센다. 여기서도 상태 파일이 필요 없다.

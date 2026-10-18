@@ -131,6 +131,15 @@ assert len(posted) == 1, posted  # 지역명 있는 댓글에만 답한다
 assert posted[0][1] == "c1", posted
 assert "노원구" in posted[0][0], posted
 
+# 사진만 달린 댓글은 text 키가 없이 온다. 하나 섞여도 나머지에 답해야 한다.
+posted.clear()
+auto_reply.conversation = lambda media_id, token: [
+    {"id": "c0", "username": "u0", "replied_to": {"id": "m1"}, "timestamp": TODAY},
+    {"id": "c1", "username": "u1", "text": "노원구", "replied_to": {"id": "m1"}, "timestamp": TODAY},
+]
+assert auto_reply.main() == 0
+assert [r for _, r in posted] == ["c1"], posted
+
 # 하루 상한: 오늘 내가 단 답글이 DAILY_CAP 이상이면 멈춘다
 posted.clear()
 auto_reply.conversation = lambda media_id, token: (
