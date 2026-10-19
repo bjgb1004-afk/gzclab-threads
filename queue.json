@@ -2401,7 +2401,14 @@
     "reply_mode": "replay",
     "post_id": "18170077432464105",
     "date": "2026-10-18",
-    "published_at": "2026-10-18T05:09:07+00:00"
+    "published_at": "2026-10-18T05:09:07+00:00",
+    "insights": {
+      "views": 4259,
+      "likes": 19,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "reply_mode": "combo",
