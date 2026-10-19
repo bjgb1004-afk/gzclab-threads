@@ -102,8 +102,8 @@ def test_full_week():
     assert lp.run_auto(at(2026, 10, 3, 17), dry=False) == 0
     bodies = [t for t, reply in calls["posts"] if reply is None]
     assert len(bodies) == 6, len(bodies)
-    assert "월요일의 분석: 아르키메데스" in bodies[0]
-    assert "금요일의 분석: 가우시안" in bodies[4]
+    assert "흐름분석: 아르키메데스" in bodies[0]
+    assert "편차분석: 가우시안" in bodies[4]
     assert "토요일은 명당 번호" in bodies[5]
     for t in bodies[:5]:
         assert "댓글 남기면" in t  # 번호 없이 분석 과정만, 번호는 댓글 답글로

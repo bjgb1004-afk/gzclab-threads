@@ -242,7 +242,7 @@ def build_recipe_post(recipe_id, day, draw_no, history):
     idx = DAYS.index(day)
     name = recipes.KOREAN_NAME[recipe_id]
     head = [
-        f"[{draw_no}회] {DAY_KO[day]}요일의 분석: {name}",
+        f"[{draw_no}회] {recipes.LABEL[recipe_id]}: {name}",
         COMBO_ASK.format(draw=draw_no),  # 접힘 앞(둘째 줄) — 1244주 화·수 댓글 20·30개 구조
         FOLLOWS[idx % len(FOLLOWS)],
         "",

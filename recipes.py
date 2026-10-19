@@ -428,6 +428,16 @@ RECIPES_BY_ID = {
 # 월~금 배정(2026-10-13 유저 결정: 기존 geniusGenerator 순서 그대로 — 가우스 자리가 가우시안).
 ORDER = ("archimedes", "fibonacci", "pascal", "euler", "gaussian")
 
+# 첫 줄 제목의 "무엇을 보는 방법인가" 라벨. 요일 표시를 대체(2026-10-19 유저 결정) —
+# 올린 시각은 스레드가 이미 보여주므로 첫 줄엔 방법의 내용을 넣는다.
+LABEL = {
+    "archimedes": "흐름분석",   # 총 출현 + 최근100회 + 안 나온 기간
+    "fibonacci": "간격분석",    # 번호 사이 간격이 피보나치 수인지
+    "pascal": "모양분석",       # 번호를 안 좁힌다 — 홀짝·저고·합계 모양만
+    "euler": "그룹분석",        # 5로 나눈 나머지 그룹 + 서로소 비율
+    "gaussian": "편차분석",     # 기대치에서 몇 표준편차 벗어났나
+}
+
 KOREAN_NAME = {
     "archimedes": "아르키메데스",
     "fibonacci": "피보나치",

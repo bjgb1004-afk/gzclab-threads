@@ -203,7 +203,7 @@ assert len(saved) == 1 and saved[0]["numbers"] == nums and saved[0]["recipe"] ==
 auto_reply.recipe_history = lambda: FAKE_HISTORY
 (tmp / "queue.json").write_text(_json.dumps([
     {"id": "picks-1300-mon", "status": "published", "post_id": "mgen", "genius": "archimedes",
-     "reply_mode": "combo", "text": "[1300회] 월요일의 분석: 아르키메데스",
+     "reply_mode": "combo", "text": "[1300회] 흐름분석: 아르키메데스",
      "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")},
 ]), encoding="utf-8")
 auto_reply.conversation = lambda media_id, token: [
