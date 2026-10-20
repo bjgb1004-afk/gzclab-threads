@@ -2500,7 +2500,14 @@
     "reply_mode": "replay",
     "post_id": "18245891287312256",
     "date": "2026-10-19",
-    "published_at": "2026-10-19T05:08:27+00:00"
+    "published_at": "2026-10-19T05:08:27+00:00",
+    "insights": {
+      "views": 3899,
+      "likes": 22,
+      "replies": 3,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "reply_mode": "combo",
