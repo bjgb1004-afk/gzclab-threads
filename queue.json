@@ -2708,7 +2708,14 @@
     "reply_mode": "replay",
     "post_id": "18117903248090302",
     "date": "2026-10-22",
-    "published_at": "2026-10-22T05:12:17+00:00"
+    "published_at": "2026-10-22T05:12:17+00:00",
+    "insights": {
+      "views": 317,
+      "likes": 4,
+      "replies": 4,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "reply_mode": "combo",
