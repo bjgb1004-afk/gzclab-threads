@@ -1,10 +1,14 @@
-"""번호 글 두 가지 — 번호대 분석(토요일 5게임)과 놓친 당첨금(매일 1게임).
+"""번호대 분석 글(토요일 5게임).
+
+매일 14:07에 나가던 "놓친 당첨금" 글은 2026-10-25에 뺐다 — 조회수가 전 포맷 중 꼴찌
+(243~330)였고 좋아요 2·댓글 1(자동답글)로 사실상 반응이 없었다. 번호 한 줄에 과거 성적만
+붙인 글이라 읽을 이유가 없었다. 되살리려면 그 날짜 직전 커밋에 build_miss가 그대로 있다.
 
 번호는 band_gen(복권명당 앱 bandGenerator.ts의 포팅본)에서 가져온다. 여기서 따로 뽑으면
 앱 화면과 다른 번호가 나가고, "앱에서 뽑아도 같은 번호"라는 말이 거짓이 된다.
 
 앱과 마찬가지로 **날짜**로 고정된다(회차가 아니다). 같은 날이면 앱·스레드·인스타가 모두
-같은 번호를 낸다. 놓친 당첨금 글의 1게임은 번호대 5게임의 A게임과 같은 번호다.
+같은 번호를 낸다.
 
 확률은 바뀌지 않는다(어떤 조합이든 1/8,145,060). 글에는 규칙만 적고 "그래서 잘 나온다"는
 쓰지 않는다. 성적도 과거 사실로만 쓴다.
@@ -24,7 +28,6 @@ GAMES = 5
 LIMIT = 500       # Threads 본문 글자 제한
 LETTERS = "ABCDE"
 LINK = "https://gzclab.com/lottomap/?c=band"
-MISS_LINK = "https://gzclab.com/lottomap/?c=miss"
 
 
 def build_band(date_key, draws):
@@ -71,67 +74,23 @@ def build_band(date_key, draws):
     }
 
 
-def build_miss(date_key, draws):
-    """놓친 당첨금 글(매일). 오늘의 번호 1게임 + 1회차부터 전부 돌린 성적.
-
-    번호대 5게임의 A게임과 같은 번호다 — 앱에서도 인스타 카드에서도 같은 줄이 나온다.
-    매일 5게임을 올리면 타임라인이 번호표가 되므로, 분석(토)과 성적(매일)을 나눴다.
-    """
-    nums = bg.generate_daily_band_games(date_key, 1)[0]["numbers"]
-    res = rp.replay(nums, draws)
-    if res["hits"]:
-        order = sorted(res["by_rank"])
-        detail = " · ".join(f"{r}등 {res['by_rank'][r]}번" for r in order)
-        grade = (
-            f"{res['from']}회부터 {res['to']}회까지 {res['draws']}회를 돌려봤더니\n"
-            f"{res['hits']}번 당첨돼 있었음. ({detail})\n"
-            f"다 합치면 {rp.won(res['gross'])}."
-        )
-    else:
-        grade = f"{res['draws']}회 동안 한 번도 등수에 못 들었음. 이런 번호도 드묾."
-
-    text = (
-        f"오늘의 번호 {bg.fmt(nums)}\n"
-        "\n"
-        "이런 거 매일 하나씩 올림. 팔로우해두고 보면 됨.\n"
-        "\n"
-        f"{grade}\n"
-        "\n"
-        "사지 않았으면 받을 수 없는 돈이고, 지나간 회차 성적이라 다음 회차랑은 상관없음.\n"
-        "\n"
-        "자기 번호 6개 댓글에 남겨봐. 똑같이 돌려서 답 달아줌.\n"
-        "4시간 지나면 답 못 달 수도 있음."
-    )
-    if len(text) > LIMIT:
-        raise RuntimeError(f"{date_key} 놓친당첨금 글 {len(text)}자 — 한도 {LIMIT} 초과")
-    return {
-        "id": f"miss-{date_key}",
-        "status": "pending",
-        "slot": "miss",
-        "text": text,
-        "link": MISS_LINK,
-        "reply_mode": "replay",
-    }
-
-
 # ---------- 발행 ----------
-# 번호는 날짜로 고정이라 날이 바뀌면 번호도 바뀐다. id가 band-2026-10-03 / miss-2026-10-03
-# 꼴이라 같은 날 몇 번을 돌려도 각각 한 번만 나간다.
+# 번호는 날짜로 고정이라 날이 바뀌면 번호도 바뀐다. id가 band-2026-10-03 꼴이라 같은 날
+# 몇 번을 돌려도 한 번만 나간다.
 #
 # 번호대 분석은 **토요일만**이다. 월~금 번호 자리는 천재 5인(17:07)이 쓰고 토 17:07은
 # 명당 5게임이다 — 그 둘을 합친 30게임을 토요일 밤에 채점하므로 lotto_picks는 건드리지
-# 않는다. 놓친 당첨금은 매일.
+# 않는다.
 #
-# 두 글 다 본문이 "4시간 안에 답 달아줌"을 약속하므로 창이 닫히면 올리지 않는다.
+# 본문이 "4시간 안에 답 달아줌"을 약속하므로 창이 닫히면 올리지 않는다.
 # 밤에 살아난 루프가 지킬 수 없는 약속을 하면 안 된다.
 BAND_DAY = 5                                  # 0=월 … 5=토
 BAND_TIME, BAND_UNTIL = (10, 7), (14, 0)
-MISS_TIME, MISS_UNTIL = (14, 7), (18, 0)      # 매일
 
 LINK_LEAD = "번호 사러 갈 때 근처에 1등 많이 나온 집 있는지는 여기서 보면 됨:"
 
-BUILD = {"band": build_band, "miss": build_miss}
-TITLE = {"band": "번호대", "miss": "놓친 당첨금"}
+BUILD = {"band": build_band}
+TITLE = {"band": "번호대"}
 
 
 def kst(now):
@@ -149,8 +108,6 @@ def due(now):
     kinds = []
     if local.weekday() == BAND_DAY and BAND_TIME <= hm < BAND_UNTIL:
         kinds.append("band")
-    if MISS_TIME <= hm < MISS_UNTIL:
-        kinds.append("miss")
     return kinds
 
 
