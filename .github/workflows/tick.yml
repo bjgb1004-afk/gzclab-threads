@@ -63,6 +63,10 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 스피또 글이 읽는 복권명당 Supabase(읽기 전용 anon 키). 없으면 스피또
+          # 단계만 조용히 건너뛰고 나머지 파이프라인은 그대로 돈다.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"

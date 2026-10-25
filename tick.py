@@ -21,6 +21,7 @@ import gen_draw_post
 import gen_posts
 import lotto_picks
 import publish
+import spitto
 from publish import telegram
 
 KST = datetime.timezone(datetime.timedelta(hours=9))
@@ -46,8 +47,10 @@ def due_slot_start(queue, now):
     h, m = passed[-1]
     start = local.replace(hour=h, minute=m, second=0, microsecond=0)
     for p in queue:
-        # picks(17:07)·band(14:07) 글은 제 시각에 따로 나간다. 그게 슬롯 발행을 대신하면 안 된다.
-        if p["id"].startswith(("picks-", "band-", "miss-")) or not p.get("published_at"):
+        # picks(07:07)·band(토 10:07)·spitto(16:07) 글은 제 시각에 따로 나간다. 그게 슬롯
+        # 발행을 대신하면 그날 슬롯 글 하나가 조용히 사라진다. miss-는 폐지했지만 큐에 남은
+        # 과거 글이 슬롯 발행을 막으면 안 되므로 계속 걸러낸다.
+        if p["id"].startswith(("picks-", "band-", "miss-", "spitto-")) or not p.get("published_at"):
             continue
         if datetime.datetime.fromisoformat(p["published_at"]) >= start:
             return None
@@ -107,7 +110,7 @@ def main():
     if weekly_draw_due(queue, now):
         step("draw", lambda: gen_draw_post.main([]))
     step("picks", lambda: lotto_picks.run_auto(now, dry=False))
-    # 토 10:07 번호대 분석 + 매일 14:07 놓친 당첨금. 각각 하루 한 번, 그 뒤 4시간은 답글.
+    # 토 10:07 번호대 분석. 하루 한 번, 그 뒤 4시간은 답글.
     step("band", lambda: band_picks.run_auto(now, dry=False))
     # 큐가 마르면 지난 회차 데이터로 pm/night 글을 찍어 채운다. 손으로 쓴 글이 남아 있으면
     # 아무것도 하지 않는다.
@@ -117,6 +120,11 @@ def main():
     # 인스타. 토큰이 없으면 아무 말 없이 건너뛴다 — 스레드만 돌려도 되게.
     if os.environ.get("IG_TOKEN"):
         step("instagram", lambda: instagram(now))
+    # 스피또(즉석복권). 복권명당 앱이 Supabase에 쌓아둔 spitto_rounds를 읽는다 — 동행복권을
+    # 여기서 또 긁지 않는다(앱 쪽 sync-spitto.yml이 하루 3회 받아오고, 과거 연속 조회로 IP
+    # 차단을 당한 적이 있다). 자격정보가 없으면 아무 말 없이 건너뛴다.
+    if os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_ANON_KEY"):
+        step("spitto", lambda: spitto.run_auto(now, dry=False))
     step("reply", auto_reply.main)
     step("insights", collect_insights.main)
     return 0
