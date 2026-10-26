@@ -123,7 +123,12 @@ def analyze(draws, last):
     }
 
 
-def build_post(s):
+def build_post(s, extra=None):
+    """extra: 누적 당첨 실적 한 줄(lotto_picks.win_line). 없으면 아무것도 넣지 않는다.
+
+    lotto_picks를 여기서 import하지 않는다 — 그쪽이 이 모듈을 import하므로 순환이 된다.
+    호출부(run_stats)가 만들어 넘긴다.
+    """
     nxt = s["last"] + 1
     lines = [
         f"{nxt}회 로또 흐름 정리",
@@ -149,15 +154,23 @@ def build_post(s):
         f"최근 10회는 {lo}~{hi} 구간이 전체 출현의 {share}%",
         "",
         f"역대 {s['total']}회 기준: 번호합 {slo}~{shi} {sshare}% · 홀짝 {s['odd_even'][0]} {s['odd_even'][1]}% · 연속번호 없음 {s['no_consec']}%",
-        "",
-        FOOT,
     ]
-    text = "\n".join(lines)
-    # 안 나온 번호가 많은 주는 길어진다. 넘치면 그 줄부터 뺀다.
-    if len(text) > LIMIT:
-        text = "\n".join(l for l in lines if not l.startswith("최근 10회 한 번도"))
-    assert len(text) <= LIMIT, f"흐름 글 {len(text)}자"
-    return text
+    def joined(drop_cold=False, drop_extra=False):
+        """꼬리말과 실적 줄은 여기서 붙인다. 완성된 줄 목록에서 값으로 걸러내면 실적 줄
+        앞의 빈 줄이 남아 빈 줄이 두 개가 된다(실제로 그런 글이 나왔다)."""
+        out = [l for l in lines
+               if not (drop_cold and l.startswith("최근 10회 한 번도"))]
+        if extra and not drop_extra:
+            out += ["", extra]
+        return "\n".join(out + ["", FOOT])
+
+    # 안 나온 번호가 많은 주는 길어진다. 넘치면 그 줄부터 뺀다. 실적 줄은 마지막에 뺀다 —
+    # 통계 한 줄보다 "실제로 당첨된 사람이 있다"는 사실이 더 값지다.
+    for kw in ({}, {"drop_cold": True}, {"drop_cold": True, "drop_extra": True}):
+        text = joined(**kw)
+        if len(text) <= LIMIT:
+            return text
+    raise AssertionError(f"흐름 글 {len(text)}자")
 
 
 def main(argv):

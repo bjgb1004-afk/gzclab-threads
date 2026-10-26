@@ -353,7 +353,12 @@ def test_grade_post_masks_names_and_asks_for_next_draw():
     now = at(2026, 10, 14, 1, 0)
     assert lp.run_grade(now, dry=False, draw_no=1245) == 0
     text = calls["posts"][0][0]
-    assert "3게임 채점 결과" in text and "4등 1게임 · 5등 1게임 (1~3등은 없음)" in text
+    # 첫 줄은 당첨 사실이 먼저다(2026-10-26). 예전 "N게임 채점 결과"는 정산 보고서처럼
+    # 읽혀 조회가 745였다.
+    assert text.startswith("스레드 댓글로 받아간 번호에서 4등 나왔습니다. (1245회, 3게임 중)")
+    assert "4등 1게임 · 5등 1게임 (1~3등은 없음)" in text
+    # 당첨자가 일치 분포보다 먼저 나와야 한다 — 분포가 앞이면 "0개 N명"이 첫인상이 된다
+    assert text.index("4등: m_j***") < text.index("일치 개수별")
     assert "m_j***님" in text and "m_j000n" not in text and "sir***" in text and "siri__" not in text
     assert "1246회 번호 1게임 뽑아서 답 달아줌" in text.split("\n")[1]
     assert len(text) <= lp.LIMIT
@@ -370,7 +375,8 @@ def test_grade_one_off_runs_after_1am_only():
     lp.conversation_all = lambda m, t: [{"username": "gzclab", "text": "a아 x\n04 05 16 19 25 42"}]
     publish.TOKEN = "x"
     lp.save(lp.QUEUE, [{"id": "picks-1245-stats", "post_id": "S", "status": "published"}])
+    graded = lambda: [t for t, _ in calls["posts"] if "받아간 번호에서" in t or "전부 꽝" in t]
     lp.run_auto(at(2026, 10, 14, 0, 50), dry=False)
-    assert not any("채점 결과" in t for t, _ in calls["posts"])
+    assert not graded()
     lp.run_auto(at(2026, 10, 14, 1, 5), dry=False)
-    assert any("채점 결과" in t for t, _ in calls["posts"])
+    assert graded()

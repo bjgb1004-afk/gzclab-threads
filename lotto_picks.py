@@ -660,9 +660,14 @@ def conversation_all(media_id, token):
     return items
 
 
-def comment_games(items, me="gzclab"):
-    """내 답글에서 (닉네임, 번호 6개)를 읽는다."""
-    games = []
+def comment_entries(items, me="gzclab"):
+    """내 답글에서 {"name","numbers","reply_id"}를 읽는다.
+
+    reply_id가 필요한 이유: 당첨된 사람에게 "너 몇 등이야"를 알려주려면 그 사람 자리에
+    답글을 달아야 한다. 내 답글에 다시 답글을 달면 그 사람 알림으로 간다(그 사람 댓글
+    아래 묶이기 때문). 원래 댓글 id는 내 답글 쪽에서 알 수 없다.
+    """
+    out = []
     for i in items:
         if i.get("username") != me or not i.get("text"):
             continue
@@ -671,35 +676,122 @@ def comment_games(items, me="gzclab"):
             continue
         nums = sorted(int(x) for x in re.findall(r"\d{2}", m.group(1)))
         if len(nums) == 6:
-            games.append((i["text"].split("아 ")[0], nums))
-    return games
+            out.append({"name": i["text"].split("아 ")[0],
+                        "numbers": nums,
+                        "reply_id": i.get("id")})
+    return out
+
+
+def comment_games(items, me="gzclab"):
+    """(닉네임, 번호 6개) 목록. 채점·집계는 이것만 쓴다."""
+    return [(e["name"], e["numbers"]) for e in comment_entries(items, me)]
 
 
 def mask_name(name):
     return (name[:3] if len(name) > 4 else name[:1]) + "***"
 
 
-def build_grade_post(draw_no, next_draw, games, win, bonus):
-    dist = collections.Counter(len(set(nums) & set(win)) for _, nums in games)
+# ---------- 누적 당첨 실적 ----------
+# 왜 기록하나 (2026-10-26 유저 지적): 댓글로 번호를 받아간 사람 중 실제로 당첨된 사람이
+# 있다(1245회 4등 1명·5등 6명, 1246회 5등 1명, 1247회 5등 2명). 그런데 그 사실이 회차별
+# 채점 글(조회 672~745)에만 있고, 조회가 수천~1만 나오는 흐름 정리 글에는 한 줄도 없었다.
+# 실적을 picks.json에 모아 두고 흐름 정리 글에 한 줄로 얹는다.
+#
+# 쓸 수 있는 주장의 한계: 번호는 닉네임 시드 무작위 조합이다(lotto_gen.store_game).
+# "이 번호가 잘 맞는다"는 거짓이고, 쓸 수 있는 건 "받아간 사람 중 당첨된 사람이 있다"는
+# 사실뿐이다. 그래서 전체 게임 수를 반드시 같이 쓰고(비율을 숨기지 않는다), 5등이
+# 5천원이라는 것도 밝힌다. 과장하면 다음 주 숫자가 반박한다.
+RANK_PRIZE = {5: "5천원", 4: "5만원"}  # 1~3등은 금액이 회차마다 달라 쓰지 않는다
+
+
+def save_grade_result(draw_no, games, winners):
+    """회차별 채점 결과를 picks.json에 남긴다. {games: 68, ranks: {"5": 2}}"""
+    picks = load(PICKS, {})
+    entry = picks.setdefault(str(draw_no), {"days": {}}).setdefault("stats", {})
+    entry["grade_result"] = {
+        "games": len(games),
+        "ranks": {str(r): len(v) for r, v in sorted(winners.items())},
+    }
+    save(PICKS, picks)
+
+
+def win_totals(picks=None):
+    """누적 실적. {"draws": 3, "games": 332, "ranks": {4: 1, 5: 9}}"""
+    picks = load(PICKS, {}) if picks is None else picks
+    draws = games = 0
+    ranks = {}
+    for week in picks.values():
+        gr = (week.get("stats") or {}).get("grade_result")
+        if not gr:
+            continue
+        draws += 1
+        games += gr.get("games", 0)
+        for r, n in (gr.get("ranks") or {}).items():
+            ranks[int(r)] = ranks.get(int(r), 0) + n
+    return {"draws": draws, "games": games, "ranks": ranks}
+
+
+def win_line(picks=None):
+    """흐름 정리 글에 얹는 누적 실적 한 줄. 아직 당첨이 없으면 None(없는 성과를 쓰지 않는다).
+
+    문구 기준 (2026-10-26 유저 결정): 굳이 깎아내리지 않는다. "무작위 조합임" 같은
+    군더더기 설명과 상금 액수는 빼고, 당첨 사실과 받는 방법만 세게 쓴다.
+
+    다만 **전체 게임 수는 반드시 남긴다.** 이걸 빼면 "10명 당첨"만 남아서 로또에 실제 돈을
+    쓰는 사람이 당첨률을 몇 배로 오해한다. 그 오해는 결국 계정 신뢰로 되돌아온다.
+    그리고 확률이 올라간다는 식의 표현은 쓰지 않는다 — 번호는 닉네임 시드 조합이고
+    실측상 무작위와 차이가 없다([[project_threads_copy_policy]]).
+    """
+    t = win_totals(picks)
+    ranks = t["ranks"]
+    if not ranks or not t["games"]:
+        return None
+    total = sum(ranks.values())
+    detail = "\u00b7".join(f"{r}\ub4f1 {n}\uba85" for r, n in sorted(ranks.items()))
+    return (f"\uc9c0\uae08\uae4c\uc9c0 \uc774 \uae00 \ub313\uae00\ub85c \ub098\uac04 \ubc88\ud638 {t['games']}\uac8c\uc784 \uc911 "
+            f"{total}\uba85 \ub2f9\ucca8({detail}). \ub2c9\ub124\uc784\ub9cc \uc8fc\uba74 \ub2e4\uc74c \ud68c\ucc28 \ubc88\ud638 \ubf51\uc544\uc90c.")
+
+
+def grade_hook(draw_no, games, winners):
+    """채점 글 첫 줄. 당첨이 있으면 그걸 먼저 말한다 — 묻혀 있던 게 이것이다.
+
+    예전 첫 줄은 "1245회 흐름 정리 댓글로 나간 번호 181게임 채점 결과"였다. 정산 보고서처럼
+    읽히고, 바로 아래 "0개 67명"이 먼저 나와서 대부분 꽝이라는 인상만 남았다(조회 745).
+    """
+    if not winners:
+        return f"{draw_no}회는 댓글 번호 {len(games)}게임 전부 꽝이었습니다. 숨기지 않고 올립니다."
+    best = min(winners)
+    n = len(winners[best])
+    who = f"{best}등 {n}명" if n > 1 else f"{best}등"
+    return f"스레드 댓글로 받아간 번호에서 {who} 나왔습니다. ({draw_no}회, {len(games)}게임 중)"
+
+
+def grade_winners(games, win, bonus):
+    """{등수: [(닉네임, 번호, 일치수), ...]}. run_grade도 실적 기록에 같은 집계를 쓴다."""
     winners = collections.defaultdict(list)
     for name, nums in games:
         rank = rank_of(nums, win, bonus)
         if rank:
             winners[rank].append((name, nums, len(set(nums) & set(win))))
+    return winners
+
+
+def build_grade_post(draw_no, next_draw, games, win, bonus):
+    dist = collections.Counter(len(set(nums) & set(win)) for _, nums in games)
+    winners = grade_winners(games, win, bonus)
     ranks = " · ".join(f"{r}등 {len(winners[r])}게임" for r in sorted(winners)) or "당첨(5등 이상) 없음"
     if winners and not any(r in winners for r in (1, 2, 3)):
         ranks += " (1~3등은 없음)"
 
     def compose(with_names=True, with_dist=True):
         lines = [
-            f"{draw_no}회 흐름 정리 댓글로 나간 번호 {len(games)}게임 채점 결과",
+            grade_hook(draw_no, games, winners),
             COMBO_ASK.format(draw=next_draw),
             "",
             ranks,
             f"당첨번호 {g.fmt(win)}",
         ]
-        if with_dist:
-            lines += ["", "일치 개수별", " · ".join(f"{h}개 {dist[h]}" for h in sorted(dist))]
+        # 당첨자를 일치 분포보다 먼저 쓴다. 분포를 앞에 두면 "0개 67명"이 첫인상이 된다.
         if with_names and winners:
             lines.append("")
             for r in sorted(winners):
@@ -708,6 +800,8 @@ def build_grade_post(draw_no, next_draw, games, win, bonus):
                         lines.append(f"{r}등: {mask_name(name)}님 ({g.fmt(nums)}, {hit}개 일치)")
                 else:
                     lines.append(f"{r}등: " + ", ".join(mask_name(n) for n, _, _ in winners[r]))
+        if with_dist:
+            lines += ["", "일치 개수별", " · ".join(f"{h}개 {dist[h]}" for h in sorted(dist))]
         lines += ["", "맞은 것만 골라 올린 거 아님. 나간 번호 전부 채점함."]
         return "\n".join(lines)
 
@@ -716,6 +810,61 @@ def build_grade_post(draw_no, next_draw, games, win, bonus):
         if len(text) <= LIMIT:
             return text
     raise AssertionError("채점 글이 500자를 넘음")
+
+
+# ---------- 당첨자 본인에게 알리기 ----------
+# 왜 (2026-10-26 유저 요청): 당첨된 사람 댓글이 아직 그 글에 그대로 있다. 등수를 알려주면
+# 본인이 반응하고, 그 반응이 묶여 있는 글을 다시 띄운다. 채점 글 하나보다 이게 싸고 세다.
+#
+# 수령 방법을 같이 쓴다 — 5등 5천원·4등 5만원은 판매점에서 바로 받고, 1~3등은 농협은행에서
+# 신분증을 내야 한다. 지급 기한은 지급개시일로부터 1년이다. 당첨된 걸 모르고 넘기면
+# 알려준 의미가 없다.
+WINNER_REPLY_CAP = 20  # 안전장치. 파싱이 틀어져 수백 건이 나가는 일을 막는다
+
+
+def winner_reply(name, draw_no, rank, hits):
+    """당첨자 한 명에게 보낼 답글."""
+    prize = RANK_PRIZE.get(rank)
+    if rank >= 4:
+        how = f"{prize} — 복권 판매점에서 바로 받을 수 있어."
+    else:
+        how = "당첨금은 농협은행에서 신분증 내고 받으면 돼."
+    return (f"{name}아 {draw_no}회 네 번호 채점했어. {hits}개 맞아서 {rank}등이야!\n"
+            f"{how} 지급 기한은 1년이니까 꼭 받아가.")
+
+
+def reply_to_winners(draw_no, entries, numbers, bonus):
+    """당첨된 댓글 작성자에게 각각 답글. 이미 보낸 사람은 건너뛴다(회차당 한 번씩만)."""
+    picks = load(PICKS, {})
+    stats = picks.setdefault(str(draw_no), {"days": {}}).setdefault("stats", {})
+    done = set(stats.get("winner_replies") or [])
+    sent = 0
+    for e in entries:
+        if sent >= WINNER_REPLY_CAP:
+            print(f"당첨자 답글 상한 {WINNER_REPLY_CAP}건 도달", file=sys.stderr)
+            break
+        rid = e.get("reply_id")
+        if not rid or rid in done:
+            continue
+        rank = rank_of(e["numbers"], numbers, bonus)
+        if not rank:
+            continue
+        hits = len(set(e["numbers"]) & set(numbers))
+        try:
+            publish.publish(winner_reply(e["name"], draw_no, rank, hits), reply_to=rid)
+        except Exception as ex:
+            # 한 명 실패가 나머지를 막으면 안 된다. 기록에 안 넣으니 다음 실행이 다시 시도한다.
+            print(ex, file=sys.stderr)
+            publish.telegram(f"⚠️ {draw_no}회 당첨자 답글 실패 ({e['name']})\n{ex}")
+            continue
+        done.add(rid)
+        sent += 1
+        # 한 건마다 저장한다. 중간에 죽어도 이미 보낸 사람에게 두 번 가지 않는다.
+        stats["winner_replies"] = sorted(done)
+        save(PICKS, picks)
+    if sent:
+        publish.telegram(f"🎉 {draw_no}회 당첨자 {sent}명에게 답글 보냄")
+    return sent
 
 
 def run_grade(now, dry, draw_no):
@@ -732,7 +881,8 @@ def run_grade(now, dry, draw_no):
         print(f"{draw_no}회 당첨번호가 아직 미러에 없음")
         return 0
     numbers, bonus = win
-    games = comment_games(conversation_all(src["post_id"], publish.TOKEN))
+    entries = comment_entries(conversation_all(src["post_id"], publish.TOKEN))
+    games = [(e["name"], e["numbers"]) for e in entries]
     if not games:
         print(f"{draw_no}회 흐름 정리 글에서 읽은 번호가 없음")
         return 0
@@ -750,8 +900,17 @@ def run_grade(now, dry, draw_no):
     picks = load(PICKS, {})
     picks.setdefault(str(draw_no), {"days": {}}).setdefault("stats", {})["grade_post_id"] = post_id
     save(PICKS, picks)
+    # 누적 실적에 더한다. 이 숫자가 흐름 정리 글의 사회적 증거 한 줄이 된다.
+    save_grade_result(draw_no, games, grade_winners(games, numbers, bonus))
     record_in_queue(f"picks-{draw_no}-grade", text, post_id, g.upcoming_draw_no(now), reply_mode="combo")
     publish.telegram(f"📊 {draw_no}회 흐름 정리 댓글 채점 글 발행됨")
+    # 채점 글이 올라간 뒤에 당첨자 본인에게 알린다. 여기서 죽어도 채점 글은 이미 남아 있고,
+    # 보낸 사람은 기록되므로 다음 실행이 빠진 사람만 채운다.
+    try:
+        reply_to_winners(draw_no, entries, numbers, bonus)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        publish.telegram(f"⚠️ {draw_no}회 당첨자 답글 단계 실패\n{e}")
     return 0
 
 
@@ -773,7 +932,9 @@ def run_stats(now, dry):
             publish.telegram(f"❌ {draw_no - 1}회 번호가 미러에 없어 흐름 정리 글을 못 올렸습니다.")
             return 1
         return 0
-    text = lotto_stats.build_post(lotto_stats.analyze(draws, draw_no - 1))
+    # 누적 당첨 실적을 한 줄 얹는다. 회차별 채점 글은 조회가 672~745인데 이 글은 수천~1만이라,
+    # 실적이 사람들 눈에 닿는 곳은 여기다(2026-10-26).
+    text = lotto_stats.build_post(lotto_stats.analyze(draws, draw_no - 1), extra=win_line())
     if dry:
         print(text)
         print(f"--- {len(text)}자")
