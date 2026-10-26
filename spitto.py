@@ -88,11 +88,7 @@ def save(path, data):
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def utc_iso():
-    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-
-
-def record_in_queue(entry_id, text, post_id, kind):
+def record_in_queue(entry_id, text, post_id, kind, now):
     """collect_insights(조회수 수집)가 이 글을 집어가게 한다.
 
     reply_mode를 넣지 않는다 - auto_reply가 답할 거리가 없는 글이다(스피또 재고는 우리가
@@ -108,7 +104,9 @@ def record_in_queue(entry_id, text, post_id, kind):
         "kind": kind,
         "text": text,
         "post_id": post_id,
-        "published_at": utc_iso(),
+        # 전달받은 now를 쓴다. 벽시계를 쓰면 쿨다운이 호출자가 본 시각과 어긋난다
+        # (운영에선 같지만, --now로 점검할 때와 테스트에서 하루가 밀린다).
+        "published_at": now.astimezone(datetime.timezone.utc).isoformat(timespec="seconds"),
     })
     save(QUEUE, queue)
 
@@ -289,7 +287,7 @@ def build_claim_post(warning):
 
 # ---------- 실행 ----------
 
-def post(text, entry_id, kind, label, dry):
+def post(text, entry_id, kind, label, dry, now):
     if dry:
         print(text)
         print(f"--- {len(text)}자  [{entry_id}]")
@@ -300,7 +298,7 @@ def post(text, entry_id, kind, label, dry):
         print(e, file=sys.stderr)
         publish.telegram(f"❌ 스피또 {label} 글 발행 실패\n{e}")
         raise
-    record_in_queue(entry_id, text, post_id, kind)
+    record_in_queue(entry_id, text, post_id, kind, now)
     # 본문이 성공했으면 링크 답글이 죽어도 글은 남는다. 번호 글과 같은 순서다.
     try:
         publish.publish(f"{LINK_LEAD}\n{LINK}", reply_to=post_id)
@@ -324,7 +322,7 @@ def run_claim(now, dry, rounds=None):
     if any(p["id"] == entry_id for p in load(QUEUE, [])):
         print(f"{warning['claim_end_date']} 마감 경고는 이미 나갔음")
         return 0
-    return post(build_claim_post(warning), entry_id, "claim", "마감", dry)
+    return post(build_claim_post(warning), entry_id, "claim", "마감", dry, now)
 
 
 def run_stock(now, dry, rounds=None):
@@ -341,7 +339,7 @@ def run_stock(now, dry, rounds=None):
     if not text:
         print("판매중 회차의 잔여수량을 못 받아왔음 — 잔여 글 건너뜀")
         return 0
-    return post(text, f"spitto-stock-{now.astimezone(KST).date()}", "stock", "잔여", dry)
+    return post(text, f"spitto-stock-{now.astimezone(KST).date()}", "stock", "잔여", dry, now)
 
 
 def run_auto(now, dry):
