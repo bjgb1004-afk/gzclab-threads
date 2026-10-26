@@ -2953,7 +2953,14 @@
     "reply_mode": "replay",
     "post_id": "18081557741344090",
     "date": "2026-10-25",
-    "published_at": "2026-10-25T05:11:36+00:00"
+    "published_at": "2026-10-25T05:11:36+00:00",
+    "insights": {
+      "views": 1354,
+      "likes": 9,
+      "replies": 3,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "reply_mode": "combo",
