@@ -77,7 +77,12 @@ jobs:
             # 카드는 커밋돼야 인스타가 받아간다(raw 주소로 내려받는다). instagram.json은
             # 발행 기록 — 사라지면 다음 틱이 같은 걸 또 올린다. 아직 없는 경로가 섞여도
             # 나머지 add가 죽지 않게 하나씩 더한다.
-            for f in queue.json picks.json instagram.json cards; do
+            # comment_picks.json을 빼먹어서 분석법 채점이 4주 동안 죽어 있었다(2026-10-26):
+            # auto_reply가 댓글마다 번호를 적어 넣지만 러너가 끝나면 파일이 사라져,
+            # 토요일 결과 글이 매주 "분석법 댓글 번호가 없어서 순위 없음"을 내보냈다.
+            # 월~금 글이 본문에서 "토요일 밤에 분석법별 성적 올림"을 약속하므로 그 약속이
+            # 4주째 안 지켜진 것이다. 파이프라인이 쓰는 상태 파일은 전부 여기 있어야 한다.
+            for f in queue.json picks.json instagram.json comment_picks.json cards; do
               git add -A "$f" 2>/dev/null || true
             done
             # 발행·답글 기록이 사라지면 다음 틱이 같은 글을 또 올린다. 커밋은 매 틱마다.
