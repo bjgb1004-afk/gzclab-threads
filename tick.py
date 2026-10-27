@@ -89,6 +89,13 @@ def instagram(now):
     ip.IG_USER_ID = os.environ.get("IG_USER_ID")
     ip.ensure_cards(now)
     ip.run_auto(now)
+    # 성적을 거둔다(24시간 지난 글만, 글당 한 번). 발행이 실패해도 이건 돌아야 하므로
+    # 같은 try 안에 두지 않는다 — 48건을 올리는 동안 측정이 0건이었던 게 이걸 안 해서다.
+    try:
+        import collect_ig_insights as ci
+        ci.main(ip.TOKEN, now)
+    except Exception as e:
+        print(f"인스타 인사이트 수집 실패: {e}", file=sys.stderr)
 
 
 def step(name, fn):
