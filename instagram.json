@@ -755,18 +755,33 @@
     "replay-2026-10-26": {
       "media_id": "18126531464301787",
       "url": "https://raw.githubusercontent.com/bjgb1004-afk/gzclab-threads/main/cards/replay-2026-10-26.jpg",
-      "at": "2026-10-26T11:21:30+00:00"
+      "at": "2026-10-26T11:21:30+00:00",
+      "insights": {
+        "reach": 0,
+        "likes": 0,
+        "comments": 0,
+        "saved": 0,
+        "shares": 0,
+        "views": 0,
+        "total_interactions": 0,
+        "profile_visits": 0,
+        "follows": 0
+      }
     },
     "genius-2026-10-27": {
       "media_id": "18111015617462310",
       "url": "https://raw.githubusercontent.com/bjgb1004-afk/gzclab-threads/main/cards/genius-1248-fibonacci.jpg",
       "at": "2026-10-27T03:20:04+00:00"
+    },
+    "replay-2026-10-27": {
+      "media_id": "17935288818141635",
+      "url": "https://raw.githubusercontent.com/bjgb1004-afk/gzclab-threads/main/cards/replay-2026-10-27.jpg",
+      "slides": 3,
+      "at": "2026-10-27T11:25:01+00:00"
     }
   },
   "followers": {
     "2026-10-27": 5
   },
-  "fails": {
-    "replay-2026-10-27": 1
-  }
+  "fails": {}
 }
