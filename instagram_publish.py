@@ -125,8 +125,35 @@ def publish_image(image_url, caption):
 
 
 # ---------- 캡션 ----------
+# 구조 기준 (2026-10-27 조사). 인스타는 스레드와 읽는 방식이 다르다:
+#
+#  1) 첫 줄이 전부다. 피드에서는 캡션이 한두 줄만 보이고 나머지는 "...더 보기"로 접힌다.
+#     예전 첫 줄은 "1245회 · 아르키메데스"였다 — 회차와 이름은 훅이 아니다. 각 소재가
+#     가진 제일 이상한 사실을 첫 줄에 올린다("원주율 π를 이어 읽어 뽑은 5게임").
+#  2) 공유(sends)를 유도한다. 인스타가 비팔로워에게 밀어줄지 정할 때 쓰는 신호 중
+#     전송이 가장 세다고 알려져 있다(Mosseri). 예전 캡션에는 공유를 청하는 줄이 아예
+#     없었다.
+#  3) 해시태그는 도달에 도움이 안 되고 5개까지만 인식된다(Mosseri). 검색으로 발견되는
+#     용도만 남겨 소재별로 구체적인 것 4개씩 쓴다. 예전엔 #로또 #복권 같은 일반 태그
+#     6개를 모든 글에 똑같이 붙였다.
+#
+# 고지 문구는 그대로 둔다. 위치만 아래로 내린다 — 실제 돈이 걸린 주제라 빼지 않는다.
 
-HASHTAGS = "#로또 #로또번호 #복권 #로또분석 #복권명당 #로또당첨확인"
+DISCLAIMER = ("당첨 확률을 높이거나 당첨을 보장하지 않습니다. "
+              "모든 번호 조합의 당첨 확률은 같습니다.")
+
+# 소재별 해시태그. 5개 넘게 쓰면 뒤는 무시된다.
+TAGS = {
+    "genius": "#로또번호추천 #수학으로뽑은번호 #로또분석 #복권명당",
+    "replay": "#놓친당첨금 #로또당첨확인 #내번호확인 #복권명당",
+    "band": "#로또번호대분석 #로또통계 #로또번호추천 #복권명당",
+}
+assert all(len(v.split()) <= 5 for v in TAGS.values()), "해시태그는 5개까지만 인식된다"
+
+
+def _tail(kind, share):
+    """공유 유도 → 앱 → 고지 → 해시태그. 순서를 바꾸지 말 것."""
+    return f"{share}\n\n앱: {APP_LINK}\n\n{DISCLAIMER}\n\n{TAGS[kind]}"
 
 
 def genius_caption(draw_no, genius_id):
@@ -134,34 +161,32 @@ def genius_caption(draw_no, genius_id):
     games = g.genius_games(genius_id, draw_no)
     rows = "\n".join(f"{'ABCDE'[i]}  {g.fmt(x)}" for i, x in enumerate(games))
     return (
-        f"{draw_no}회 · {gi['name']}\n"
-        f"{gi['how']}\n\n"
+        f"{gi['how']}\n"                      # 훅 — 접히기 전에 보이는 한 줄
+        f"{draw_no}회 {gi['name']} 번호입니다.\n\n"
         f"{rows}\n\n"
         "회차랑 천재가 정해지면 번호도 하나로 고정됩니다. "
         "복권명당 앱에서 뽑아도 글자 하나 안 다릅니다.\n\n"
-        "수학 방식으로 만든 번호이며 당첨 확률을 높이거나 당첨을 보장하지 않습니다. "
-        "모든 번호 조합의 당첨 확률은 같습니다.\n\n"
-        f"앱: {APP_LINK}\n\n{HASHTAGS}"
+        + _tail("genius", "로또 사는 사람한테 보내주세요. 다음 회차는 다른 천재 차례입니다.")
     )
 
 
 def replay_caption(nums, res):
+    """'놓친 당첨금'은 결과 자체가 훅이다. 번호보다 결과를 먼저 쓴다."""
     if res["hits"]:
         order = sorted(res["by_rank"])
         detail = " · ".join(f"{r}등 {res['by_rank'][r]}번" for r in order)
-        body = (
-            f"{res['from']}회부터 {res['to']}회까지 {res['draws']}회를 돌려봤더니\n"
-            f"{res['hits']}번 당첨돼 있었습니다. ({detail})\n"
-            f"다 합치면 {rp.won(res['gross'])}."
-        )
+        hook = f"이 번호, 지난 {res['draws']}회를 돌려보니 {res['hits']}번 당첨돼 있었습니다."
+        body = f"{res['from']}회부터 {res['to']}회까지 ({detail})\n다 합치면 {rp.won(res['gross'])}."
     else:
-        body = f"{res['draws']}회 동안 한 번도 등수에 못 들었습니다. 이런 번호도 드뭅니다."
+        hook = f"이 번호는 {res['draws']}회 동안 한 번도 등수에 못 들었습니다."
+        body = "이렇게 한 번도 안 걸리는 번호도 드뭅니다."
     return (
+        f"{hook}\n"                           # 훅
         f"오늘의 번호 {bg.fmt(nums)}\n\n"
         f"{body}\n\n"
         "사지 않았으면 받을 수 없는 돈이고, 지나간 회차 성적이라 다음 회차와는 상관없습니다.\n"
         "내 번호로 직접 돌려보는 건 복권명당 앱 '놓친 당첨금'에서 됩니다.\n\n"
-        f"앱: {APP_LINK}\n\n{HASHTAGS}"
+        + _tail("replay", "자기 번호 궁금해할 사람한테 보내주세요.")
     )
 
 
@@ -171,13 +196,13 @@ def band_caption(date_key, games, res):
         for i, x in enumerate(games)
     )
     return (
-        f"{date_key} 번호대 분석 5게임\n\n"
-        "다섯 구간(1~9 / 10번대 / 20번대 / 30번대 / 40~45) 중 한 곳은 비우고, "
-        "한 구간에 세 개까지만. 저(1~22)와 고(23~45)는 2:4 · 3:3 · 4:2 중 하나로 맞췄습니다.\n\n"
+        "다섯 구간 중 한 곳은 일부러 비우고 뽑은 5게임입니다.\n"   # 훅
+        f"{date_key} 번호대 분석\n\n"
         f"{rows}\n\n"
+        "1~9 / 10번대 / 20번대 / 30번대 / 40~45 중 한 구간은 비우고, 한 구간에 세 개까지만. "
+        "저(1~22)와 고(23~45)는 2:4 · 3:3 · 4:2 중 하나로 맞췄습니다.\n"
         f"A 번호는 {res['from']}~{res['to']}회에서 {res['hits']}번 당첨돼 있었습니다.\n\n"
-        "통계 참고용이며 당첨 확률을 높여주지 않습니다. 모든 번호 조합의 당첨 확률은 같습니다.\n\n"
-        f"앱: {APP_LINK}\n\n{HASHTAGS}"
+        + _tail("band", "번호 고를 때 참고하는 사람한테 보내주세요.")
     )
 
 
