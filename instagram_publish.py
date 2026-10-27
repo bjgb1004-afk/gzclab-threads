@@ -124,6 +124,96 @@ def publish_image(image_url, caption):
     raise last
 
 
+def publish_carousel(image_urls, caption):
+    """여러 장을 한 글로. 자식 컨테이너 → 부모(CAROUSEL) → 발행.
+
+    왜 캐러셀로 바꿨나 (2026-10-27): 단일 이미지는 넘기면 끝이지만 여러 장이면 넘기는
+    동작 자체가 체류 시간이 되고, 도달 1명당 참여가 더 높다. 1장이 표지이자 섬네일이다.
+
+    자식에는 caption을 넣지 않는다 — 부모에만 붙는다. 자식에 넣으면 조용히 무시된다.
+    """
+    if not 2 <= len(image_urls) <= 10:
+        raise RuntimeError(f"캐러셀은 2~10장이어야 한다 — {len(image_urls)}장")
+    if len(caption) > CAPTION_LIMIT:
+        raise RuntimeError(f"캡션 {len(caption)}자 — 한도 {CAPTION_LIMIT} 초과")
+    uid = user_id()
+
+    children = []
+    for url in image_urls:
+        children.append(api(f"{uid}/media", {
+            "image_url": url,
+            "is_carousel_item": "true",
+            "access_token": TOKEN,
+        })["id"])
+
+    parent = api(f"{uid}/media", {
+        "media_type": "CAROUSEL",
+        "children": ",".join(children),
+        "caption": caption,
+        "access_token": TOKEN,
+    })["id"]
+
+    # 자식이 여럿이라 단일 사진보다 준비가 늦다. 단일보다 길게 기다린다.
+    last = None
+    for wait in (5, 15, 30, 60):
+        time.sleep(wait)
+        try:
+            return api(f"{uid}/media_publish", {
+                "creation_id": parent,
+                "access_token": TOKEN,
+            })["id"]
+        except RuntimeError as e:
+            last = e
+    raise last
+
+
+# 릴스 영상 주소. 사진과 달리 raw.githubusercontent는 .mp4를 application/octet-stream으로
+# 돌려준다(2026-10-27 확인). 인스타 영상 수집이 이를 거부할 수 있어 주소 기준을 밖에서
+# 바꿀 수 있게 둔다 — 다른 호스팅으로 옮길 때 코드를 고치지 않는다.
+REEL_BASE = os.environ.get("REEL_BASE_URL", f"{CARD_BASE.rsplit('/', 1)[0]}/reels")
+REEL_POLL = (10, 15, 20, 30, 30, 45, 60)  # 영상은 서버가 변환을 끝내야 발행된다
+
+
+def container_status(container_id):
+    """영상 컨테이너의 준비 상태. FINISHED가 되어야 발행할 수 있다."""
+    qs = urllib.parse.urlencode({"fields": "status_code,status", "access_token": TOKEN})
+    with urllib.request.urlopen(f"{API}/{container_id}?{qs}", timeout=30) as r:
+        d = json.load(r)
+    return d.get("status_code"), d.get("status")
+
+
+def publish_reel(video_url, caption, cover_url=None):
+    """릴스 발행. 사진과 달리 변환이 끝날 때까지 기다려야 한다.
+
+    바로 media_publish를 때리면 아직 IN_PROGRESS라 실패한다. 상태를 물어보며 기다리고,
+    ERROR면 인스타가 준 사유를 그대로 올린다 — "실패"만 남으면 원인을 못 찾는다.
+    """
+    if len(caption) > CAPTION_LIMIT:
+        raise RuntimeError(f"캡션 {len(caption)}자 — 한도 {CAPTION_LIMIT} 초과")
+    uid = user_id()
+    params = {
+        "media_type": "REELS",
+        "video_url": video_url,
+        "caption": caption,
+        "access_token": TOKEN,
+    }
+    if cover_url:
+        params["cover_url"] = cover_url
+    container = api(f"{uid}/media", params)["id"]
+
+    for wait in REEL_POLL:
+        time.sleep(wait)
+        code, detail = container_status(container)
+        if code == "FINISHED":
+            break
+        if code == "ERROR":
+            raise RuntimeError(f"인스타가 영상을 거부했습니다: {detail}")
+    else:
+        raise RuntimeError(f"영상 변환이 끝나지 않았습니다(마지막 상태 {code})")
+
+    return api(f"{uid}/media_publish", {"creation_id": container, "access_token": TOKEN})["id"]
+
+
 # ---------- 캡션 ----------
 # 구조 기준 (2026-10-27 조사). 인스타는 스레드와 읽는 방식이 다르다:
 #
@@ -254,24 +344,29 @@ def run_auto(now, dry=False):
         if key in state["published"] or state.get("fails", {}).get(key, 0) >= MAX_TRIES:
             continue
         name, caption = build(kind, day)
-        url = f"{CARD_BASE}/{name}.jpg"
+        # 표지 → 알맹이 → 안내 3장. 1장이 섬네일이라 순서를 바꾸지 말 것.
+        urls = [f"{CARD_BASE}/{name}-hook.jpg",
+                f"{CARD_BASE}/{name}.jpg",
+                f"{CARD_BASE}/{name}-cta.jpg"]
 
         if dry:
-            print(f"[{key}] {url}\n{caption}\n{'-' * 50}")
+            print(f"[{key}] {len(urls)}장\n" + "\n".join(urls) + f"\n{caption}\n{'-' * 50}")
             continue
-        if not image_reachable(url):
+        missing = [u for u in urls if not image_reachable(u)]
+        if missing:
             # 카드를 방금 만들었으면 아직 커밋·푸시 전이다. 다음 틱에 다시 온다.
-            bump(state, key, f"카드 주소가 안 열림\n{url}")
+            bump(state, key, "카드 주소가 안 열림\n" + "\n".join(missing))
             continue
         try:
-            media_id = publish_image(url, caption)
+            media_id = publish_carousel(urls, caption)
         except Exception as e:
             print(e, file=sys.stderr)
             bump(state, key, f"발행 실패\n{e}")
             continue
         state["published"][key] = {
             "media_id": media_id,
-            "url": url,
+            "url": urls[1],
+            "slides": len(urls),
             "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         }
         state.get("fails", {}).pop(key, None)
@@ -304,7 +399,9 @@ def ensure_cards(now):
     이 틱에서 만들어지고 다음 틱에서 발행된다. 이미 있으면 아무것도 하지 않는다.
     """
     day = now.astimezone(cards.KST).date()
-    made = [cards.build_one(kind, day) for kind in kinds_for(day)]
+    made = []
+    for kind in kinds_for(day):
+        made += cards.build_slides(kind, day)
     # 발행이 끝난 카드는 인스타가 자기 쪽에 복사해 두므로 저장소에 남길 필요가 없다.
     # 안 지우면 하루 300KB씩 쌓여 체크아웃만 느려진다. 손으로 넣은 파일은 건드리지 않는다.
     keep = {p.name for p in made}
