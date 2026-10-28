@@ -69,11 +69,13 @@ def test_thread_post_shows_both_numbers():
     assert "1등 번호라고 특별한 게 아님" in post["text"]
 
 
-def test_thread_post_never_claims_the_big_number_alone():
-    """'1등 번호 = 억'으로 읽히는 문장이 없어야 한다."""
-    post = bp.build_winner("2026-10-29", DRAWS)
-    first = post["text"].splitlines()[0]
-    assert "억" not in first, "첫 줄에 억 단위가 오면 그게 그 번호의 성적으로 읽힌다"
+def test_thread_post_big_number_is_labelled_as_that_draw():
+    """첫 줄은 그 회차 당첨금(훅). 바로 뒤에 '이 회차를 빼고'로 나머지 성적을 따로 보여야 한다."""
+    t = bp.build_winner("2026-10-29", DRAWS)["text"]
+    lines = t.splitlines()
+    assert "억" in lines[0] and "그 회차" in lines[0]
+    assert "이 회차를 빼고" in t
+    assert t.index("억") < t.index("이 회차를 빼고") < t.index("다 합쳐")
 
 
 def test_winner_runs_daily_in_its_window():

@@ -267,10 +267,9 @@ def replay_caption(w):
     body = f"나머지 {res['draws']}회에서는 {ranks}.\n다 합쳐 {rp.won(res['gross'])}." if ranks \
         else f"나머지 {res['draws']}회에서는 한 번도 안 걸렸습니다."
     return (
-        f"{w['draw_no']}회 1등 번호를 나머지 {res['draws']}회에 돌려봤습니다. "
-        f"{rp.won(res['gross'])}이었습니다.\n"                      # 훅
+        f"{w['draw_no']}회 1등 번호. 그 회차에 {w['own_prize'] / 100000000:.1f}억원 나왔습니다.\n"   # 훅
         f"{bg.fmt(w['numbers'])}\n\n"
-        f"그 회차엔 {w['own_prize'] / 100000000:.1f}억원이었습니다.\n"
+        f"이 회차를 빼고 나머지 {res['draws']}회에 돌려보면?\n"
         f"{body}\n\n"
         "1등 번호라고 특별한 게 아닙니다. 그 회차를 빼면 아무 번호랑 성적이 같습니다.\n"
         "내 번호로 직접 돌려보는 건 복권명당 앱 '놓친 당첨금'에서 됩니다.\n\n"

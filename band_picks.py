@@ -93,14 +93,13 @@ def build_winner(date_key, draws):
     tail = (f"나머지 {res['draws']}회에선 {ranks}. 다 합쳐 {rp.won(res['gross'])}."
             if ranks else f"나머지 {res['draws']}회에선 한 번도 안 걸렸음.")
     text = (
-        f"{w['draw_no']}회 1등 번호를 나머지 {res['draws']}회에 돌려봤음. "
-        f"{rp.won(res['gross'])}이었음.\n"
-        "자기 번호 6개 댓글에 남겨봐. 똑같이 돌려서 답 달아줌.\n"
-        "\n"
+        f"{w['draw_no']}회 1등 번호. 그 회차에 {w['own_prize'] / 100000000:.1f}억원 나왔음.\n"
         f"{bg.fmt(w['numbers'])}\n"
         "\n"
-        f"그 회차엔 {w['own_prize'] / 100000000:.1f}억원.\n"
+        f"이 회차를 빼고 나머지 {res['draws']}회에 돌려보면?\n"
         f"{tail}\n"
+        "\n"
+        "자기 번호 6개 댓글에 남겨봐. 똑같이 돌려서 답 달아줌.\n"
         "\n"
         "1등 번호라고 특별한 게 아님. 그 회차 빼면 아무 번호랑 성적이 같음.\n"
         "4시간 지나면 답 못 달 수도 있음."
