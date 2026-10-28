@@ -179,47 +179,56 @@ def genius_card(draw_no, genius_id):
 
 # ---------- 카드 2: 무작위 번호 되짚어보기 ----------
 
-def replay_card(nums, res, label="오늘의 무작위 번호"):
-    """'놓친 당첨금'은 결과 자체가 훅이다. 번호보다 결과를 먼저, 크게 쓴다."""
+def replay_card(w, label="지난 회차 1등 번호"):
+    """1등 번호를 자기 회차 빼고 돌린 결과. 낙차가 이 카드의 전부다.
+
+    두 숫자를 나란히 둔다 — 그 회차 당첨금과 나머지 회차 합계. 합쳐서 한 숫자로 쓰면
+    "1등 번호는 22억"이 되는데, 그 22억은 전부 자기 회차에서 나온 것이라 거짓말이 된다.
+    """
+    res = w["res"]
     im = gradient()
     d = ImageDraw.Draw(im)
 
-    if res["hits"]:
-        hook = f"이 번호, {res['draws']}회를 돌려보니 {res['hits']}번 당첨돼 있었습니다"
-    else:
-        hook = f"이 번호는 {res['draws']}회 동안 한 번도 안 걸렸습니다"
-    top = hook_block(d, hook, label)
+    top = hook_block(
+        d, f"{w['draw_no']}회 1등 번호, 다른 회차에선 {rp.won(res['gross'])}이었습니다",
+        label)
 
-    # 패널 높이를 등수 줄 수에 맞춘다. 고정값을 쓰면 2줄짜리 주에 아래가 텅 빈다.
-    #   공 148 + 구분선 48 + 등수줄 70n + 합계 116 + 각주 자리 80
-    n_rows = len(res["by_rank"]) if res["hits"] else 0
-    panel_h = (436 + 70 * n_rows) if res["hits"] else 420
+    # 높이 계산: 공 148 + 구분선 52 + 낙차 블록 190 + 등수줄 62n + 맨 아래 문구 자리 134.
+    # 134를 안 두면 마지막 등수 줄과 "1등 번호라고 특별한 게 아닙니다"가 겹친다.
+    n_rows = max(len(res["by_rank"]), 1)
+    panel_h = 544 + 62 * n_rows
     panel(im, d, top, panel_h)
 
-    draw_balls(d, W // 2, top + 56, nums, r=46, gap=18)
-    y = top + 196
+    draw_balls(d, W // 2, top + 56, w["numbers"], r=46, gap=18)
+
+    # 낙차. 왼쪽이 그 회차, 오른쪽이 나머지 전부.
+    y = top + 200
     d.line([(140, y), (W - 140, y)], fill=(235, 231, 228), width=3)
+    fk, fv = font(32, "regular"), font(62, "black")
+    cx1, cx2 = W // 4 + 20, W - W // 4 - 20
+    for cx, k, v, col in (
+        (cx1, f"{w['draw_no']}회 그 자리", f"{w['own_prize'] / 100000000:.1f}억원", (210, 48, 32)),
+        (cx2, f"나머지 {res['draws']}회", rp.won(res["gross"]), INK),
+    ):
+        kb = d.textbbox((0, 0), k, font=fk)[2]
+        d.text((cx - kb / 2, y + 40), k, font=fk, fill=MUTED)
+        vb = d.textbbox((0, 0), v, font=fv)[2]
+        d.text((cx - vb / 2, y + 88), v, font=fv, fill=col)
 
-    if res["hits"]:
-        rows = [(f"{r}등", f"{res['by_rank'][r]}번") for r in sorted(res["by_rank"])]
-        ry = y + 44
-        fk, fv = font(36, "regular"), font(38, "bold")
-        for k, v in rows:
-            d.text((190, ry), k, font=fk, fill=MUTED)
-            vb = d.textbbox((0, 0), v, font=fv)[2]
-            d.text((W - 190 - vb, ry - 2), v, font=fv, fill=INK)
-            ry += 70
-        d.line([(190, ry + 12), (W - 190, ry + 12)], fill=(235, 231, 228), width=2)
-        d.text((190, ry + 46), "받았을 돈", font=fk, fill=MUTED)
-        amt = rp.won(res["gross"])
-        fa = font(56, "black")
-        ab = d.textbbox((0, 0), amt, font=fa)[2]
-        d.text((W - 190 - ab, ry + 32), amt, font=fa, fill=(210, 48, 32))
-    else:
-        center(d, y + 70, "이런 번호도 드뭅니다", font(52, "black"), INK)
+    y += 190
+    d.line([(190, y), (W - 190, y)], fill=(235, 231, 228), width=2)
+    ry = y + 30
+    fr = font(34, "regular")
+    for r in sorted(res["by_rank"]):
+        d.text((190, ry), f"{r}등", font=fr, fill=MUTED)
+        t = f"{res['by_rank'][r]}번"
+        tb = d.textbbox((0, 0), t, font=font(36, "bold"))[2]
+        d.text((W - 190 - tb, ry - 2), t, font=font(36, "bold"), fill=INK)
+        ry += 62
+    if not res["by_rank"]:
+        center(d, ry, "나머지 회차에선 한 번도 안 걸렸습니다", font(34, "bold"), INK)
 
-    center(d, top + panel_h - 56, "지나간 회차 성적이라 다음 회차와는 무관합니다",
-           font(26, "regular"), MUTED)
+    center(d, top + panel_h - 56, "1등 번호라고 특별한 게 아닙니다", font(30, "bold"), MUTED)
     footer(d)
     return im
 
@@ -325,11 +334,9 @@ def slide_hook(kind, day, draws=None):
         gi = g.GENIUS_BY_ID[g.GENIUSES[day.weekday()]["id"]]
         return gi["how"].replace(" 5게임", ""), f"{draw_no}회 · {gi['name']}"
     if kind == "replay":
-        nums = daily_random(day)
-        res = rp.replay(nums, draws if draws is not None else rp.fetch_draws())
-        if res["hits"]:
-            return f"{res['draws']}회를 돌려보니 {res['hits']}번 당첨돼 있었습니다", "오늘의 무작위 번호"
-        return f"{res['draws']}회 동안 한 번도 안 걸린 번호", "오늘의 무작위 번호"
+        w = rp.winner_replay(day.isoformat(), draws if draws is not None else rp.fetch_draws())
+        return (f"{w['draw_no']}회 1등 번호, 다른 회차에선 {rp.won(w['res']['gross'])}이었습니다",
+                "지난 회차 1등 번호")
     return "다섯 구간 중 한 곳은 일부러 비웠습니다", "오늘의 번호대 분석"
 
 
@@ -378,8 +385,7 @@ def build_one(kind, day, draws=None):
         draw_no = g.upcoming_draw_no(datetime.datetime.combine(day, datetime.time(12), KST))
         im = genius_card(draw_no, g.GENIUSES[day.weekday()]["id"])
     elif kind == "replay":
-        nums = daily_random(day)
-        im = replay_card(nums, rp.replay(nums, draws))
+        im = replay_card(rp.winner_replay(day.isoformat(), draws))
     else:
         key = day.isoformat()
         im = band_card(key, bg.generate_daily_band_games(key))

@@ -20,8 +20,10 @@ lotto_picks.rank_of와 같은 판정을 쓴다. 한쪽만 고치면 번호 글 �
 어긋나므로, test_replay.py가 두 구현이 같은 등수를 내는지 본다.
 """
 
+import datetime
 import json
 import pathlib
+import zlib
 import urllib.error
 import urllib.request
 
@@ -148,6 +150,54 @@ def replay(game, draws, start_round=START_ROUND):
         "net": net,
         "best": best,
         "best_draw": best_no,
+    }
+
+
+# ---------- 지난 회차 1등 번호 되짚어보기 ----------
+# 왜 무작위 번호에서 이걸로 바꿨나 (2026-10-28 실측):
+#   1등 번호 30개를 전 회차에 돌려보면 금액 중앙값이 22억 7천만원으로 보이지만,
+#   그 금액의 100.0%가 "자기 회차 1등"에서 나온다(262회 번호는 45억 중 45억). 당연하다 —
+#   그 회차의 1등 번호니까. **자기 회차를 빼면 16만원이고, 무작위 번호 15만원과 차이가 없다**
+#   (당첨 횟수도 21.5 대 22.0). 그래서 자기 회차를 반드시 뺀 결과를 쓴다.
+#
+#   "22억"을 그대로 쓰면 "당연하지, 그 회차 1등 번호잖아"라는 댓글 한 줄에 계정 신뢰가
+#   무너진다. 쓸 수 있는 이야기는 그 반대다 — 1등 번호도 다른 회차에서는 평범했다는 것.
+#   그게 사실이고, 이 계정이 매번 붙이던 "모든 조합의 확률은 같다"는 고지를 증거로 바꾼다.
+#
+# 회차를 고르는 방식: 고정된 순열을 만들어 날짜로 한 칸씩 민다. 같은 날이면 항상 같은
+# 회차가 나오고(인스타·스레드가 어긋나지 않는다), 986일 동안 같은 회차가 다시 안 나온다.
+# 극적인 회차만 골라 쓰지 않는다 — 그건 통계를 고르는 것이고, 평균값 자체가 이미 이야기다.
+
+_PICK_EPOCH = datetime.date(2026, 1, 1)
+
+
+def winner_pool(draws, start_round=START_ROUND):
+    return [d for d in draws if d["no"] >= start_round]
+
+
+def pick_winner(date_key, draws, start_round=START_ROUND):
+    """그날 쓸 1등 번호 회차. 날짜가 같으면 언제 돌려도 같은 회차."""
+    pool = winner_pool(draws, start_round)
+    if not pool:
+        raise RuntimeError("1등 번호를 고를 회차가 없습니다")
+    order = sorted(pool, key=lambda d: zlib.crc32(f"{d['no']}|winner".encode()))
+    days = (datetime.date.fromisoformat(date_key) - _PICK_EPOCH).days
+    return order[days % len(order)]
+
+
+def winner_replay(date_key, draws, start_round=START_ROUND):
+    """그날의 1등 번호와, **자기 회차를 뺀** 나머지 회차 성적.
+
+    own_prize는 그 회차에서 실제로 받은 1등 당첨금이다. 글에서는 이 둘을 나란히 두고
+    낙차를 보여준다 — 합쳐서 한 숫자로 쓰면 그게 거짓말이 된다.
+    """
+    d = pick_winner(date_key, draws, start_round)
+    others = [x for x in draws if x["no"] != d["no"]]
+    return {
+        "draw_no": d["no"],
+        "numbers": sorted(d["numbers"]),
+        "own_prize": prize_of(1, d),
+        "res": replay(d["numbers"], others, start_round),
     }
 
 

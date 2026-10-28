@@ -115,12 +115,14 @@ for kind, post in posts.items():
 games = bg.generate_daily_band_games(today)
 for gm in games:
     assert bg.fmt(gm["numbers"]) in posts["band"]["text"], gm["numbers"]
-# 번호대 글은 토요일 오전 창에서만 나간다(놓친 당첨금 글은 2026-10-25에 폐지)
+# 번호대 글은 토요일 오전 창에서만. 1등 번호 글(2026-10-28 추가)은 매일 14:07~18:00 창에서
+# 나간다 — 2026-10-25에 폐지한 "놓친 당첨금"이 쓰던 자리다.
 KST9 = datetime.timezone(datetime.timedelta(hours=9))
-assert band_picks.due(datetime.datetime(2026, 10, 10, 10, 7, tzinfo=KST9)) == ["band"]   # 토
-assert band_picks.due(datetime.datetime(2026, 10, 10, 15, 0, tzinfo=KST9)) == []         # 토 오후
-assert band_picks.due(datetime.datetime(2026, 10, 12, 10, 7, tzinfo=KST9)) == []         # 월 오전
-assert band_picks.due(datetime.datetime(2026, 10, 12, 15, 0, tzinfo=KST9)) == []         # 월 오후
+assert band_picks.due(datetime.datetime(2026, 10, 10, 10, 7, tzinfo=KST9)) == ["band"]       # 토 오전
+assert band_picks.due(datetime.datetime(2026, 10, 10, 15, 0, tzinfo=KST9)) == ["winner"]     # 토 오후
+assert band_picks.due(datetime.datetime(2026, 10, 12, 10, 7, tzinfo=KST9)) == []             # 월 오전
+assert band_picks.due(datetime.datetime(2026, 10, 12, 15, 0, tzinfo=KST9)) == ["winner"]     # 월 오후
+assert band_picks.due(datetime.datetime(2026, 10, 12, 18, 0, tzinfo=KST9)) == []             # 창 닫힌 뒤
 
 # ---------- 댓글 번호 파싱 ----------
 pn = auto_reply.parse_numbers

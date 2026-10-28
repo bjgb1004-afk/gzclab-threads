@@ -50,7 +50,7 @@ def due_slot_start(queue, now):
         # picks(07:07)·band(토 10:07)·spitto(16:07) 글은 제 시각에 따로 나간다. 그게 슬롯
         # 발행을 대신하면 그날 슬롯 글 하나가 조용히 사라진다. miss-는 폐지했지만 큐에 남은
         # 과거 글이 슬롯 발행을 막으면 안 되므로 계속 걸러낸다.
-        if p["id"].startswith(("picks-", "band-", "miss-", "spitto-")) or not p.get("published_at"):
+        if p["id"].startswith(("picks-", "band-", "miss-", "spitto-", "winner-")) or not p.get("published_at"):
             continue
         if datetime.datetime.fromisoformat(p["published_at"]) >= start:
             return None

@@ -260,23 +260,21 @@ def genius_caption(draw_no, genius_id):
     )
 
 
-def replay_caption(nums, res):
-    """'놓친 당첨금'은 결과 자체가 훅이다. 번호보다 결과를 먼저 쓴다."""
-    if res["hits"]:
-        order = sorted(res["by_rank"])
-        detail = " · ".join(f"{r}등 {res['by_rank'][r]}번" for r in order)
-        hook = f"이 번호, 지난 {res['draws']}회를 돌려보니 {res['hits']}번 당첨돼 있었습니다."
-        body = f"{res['from']}회부터 {res['to']}회까지 ({detail})\n다 합치면 {rp.won(res['gross'])}."
-    else:
-        hook = f"이 번호는 {res['draws']}회 동안 한 번도 등수에 못 들었습니다."
-        body = "이렇게 한 번도 안 걸리는 번호도 드뭅니다."
+def replay_caption(w):
+    """1등 번호 되짚어보기. 그 회차 금액과 나머지 회차 성적을 반드시 따로 쓴다."""
+    res = w["res"]
+    ranks = " · ".join(f"{r}등 {res['by_rank'][r]}번" for r in sorted(res["by_rank"]))
+    body = f"나머지 {res['draws']}회에서는 {ranks}.\n다 합쳐 {rp.won(res['gross'])}." if ranks \
+        else f"나머지 {res['draws']}회에서는 한 번도 안 걸렸습니다."
     return (
-        f"{hook}\n"                           # 훅
-        f"오늘의 번호 {bg.fmt(nums)}\n\n"
+        f"{w['draw_no']}회 1등 번호를 나머지 {res['draws']}회에 돌려봤습니다. "
+        f"{rp.won(res['gross'])}이었습니다.\n"                      # 훅
+        f"{bg.fmt(w['numbers'])}\n\n"
+        f"그 회차엔 {w['own_prize'] / 100000000:.1f}억원이었습니다.\n"
         f"{body}\n\n"
-        "사지 않았으면 받을 수 없는 돈이고, 지나간 회차 성적이라 다음 회차와는 상관없습니다.\n"
+        "1등 번호라고 특별한 게 아닙니다. 그 회차를 빼면 아무 번호랑 성적이 같습니다.\n"
         "내 번호로 직접 돌려보는 건 복권명당 앱 '놓친 당첨금'에서 됩니다.\n\n"
-        + _tail("replay", "자기 번호 궁금해할 사람한테 보내주세요.")
+        + _tail("replay", "1등 번호가 특별하다고 믿는 사람한테 보내주세요.")
     )
 
 
@@ -383,8 +381,7 @@ def build(kind, day):
         return name, genius_caption(draw_no, g.GENIUSES[day.weekday()]["id"])
     draws = rp.fetch_draws()
     if kind == "replay":
-        nums = cards.daily_random(day)
-        return name, replay_caption(nums, rp.replay(nums, draws))
+        return name, replay_caption(rp.winner_replay(day.isoformat(), draws))
     if kind == "band":
         key = day.isoformat()
         games = bg.generate_daily_band_games(key)

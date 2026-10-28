@@ -74,6 +74,49 @@ def build_band(date_key, draws):
     }
 
 
+# ---------- 지난 회차 1등 번호 되짚어보기 ----------
+# 2026-10-25에 뺀 "놓친 당첨금"(오늘의 무작위 번호) 자리에 들어간다. 그 글은 조회가 꼴찌
+# (243~1354)였는데, 번호 한 줄에 과거 성적만 붙어 있어 읽을 이유가 없었다.
+#
+# 바뀐 점은 번호를 무작위가 아니라 **지난 회차 1등 번호**로 쓰고, 그 회차 당첨금과
+# 나머지 회차 성적을 나란히 두는 것이다. 낙차가 읽을 이유가 된다(11.7억 대 9만원).
+#
+# 자기 회차는 반드시 뺀다 — 넣으면 금액의 100%가 거기서 나와서(2026-10-28 실측)
+# "1등 번호는 22억"이라는 거짓이 된다. 자기 회차를 빼면 무작위 번호와 성적이 같고,
+# 그 사실 자체가 이 글이 하려는 말이다.
+
+
+def build_winner(date_key, draws):
+    w = rp.winner_replay(date_key, draws)
+    res = w["res"]
+    ranks = " · ".join(f"{r}등 {res['by_rank'][r]}번" for r in sorted(res["by_rank"]))
+    tail = (f"나머지 {res['draws']}회에선 {ranks}. 다 합쳐 {rp.won(res['gross'])}."
+            if ranks else f"나머지 {res['draws']}회에선 한 번도 안 걸렸음.")
+    text = (
+        f"{w['draw_no']}회 1등 번호를 나머지 {res['draws']}회에 돌려봤음. "
+        f"{rp.won(res['gross'])}이었음.\n"
+        "자기 번호 6개 댓글에 남겨봐. 똑같이 돌려서 답 달아줌.\n"
+        "\n"
+        f"{bg.fmt(w['numbers'])}\n"
+        "\n"
+        f"그 회차엔 {w['own_prize'] / 100000000:.1f}억원.\n"
+        f"{tail}\n"
+        "\n"
+        "1등 번호라고 특별한 게 아님. 그 회차 빼면 아무 번호랑 성적이 같음.\n"
+        "4시간 지나면 답 못 달 수도 있음."
+    )
+    if len(text) > LIMIT:
+        raise RuntimeError(f"{date_key} 1등 번호 글 {len(text)}자 — 한도 {LIMIT} 초과")
+    return {
+        "id": f"winner-{date_key}",
+        "status": "pending",
+        "slot": "winner",
+        "text": text,
+        "link": LINK,
+        "reply_mode": "replay",
+    }
+
+
 # ---------- 발행 ----------
 # 번호는 날짜로 고정이라 날이 바뀌면 번호도 바뀐다. id가 band-2026-10-03 꼴이라 같은 날
 # 몇 번을 돌려도 한 번만 나간다.
@@ -86,11 +129,13 @@ def build_band(date_key, draws):
 # 밤에 살아난 루프가 지킬 수 없는 약속을 하면 안 된다.
 BAND_DAY = 5                                  # 0=월 … 5=토
 BAND_TIME, BAND_UNTIL = (10, 7), (14, 0)
+# 1등 번호 글은 매일. 예전 "놓친 당첨금"이 쓰던 자리를 그대로 쓴다.
+WINNER_TIME, WINNER_UNTIL = (14, 7), (18, 0)
 
 LINK_LEAD = "번호 사러 갈 때 근처에 1등 많이 나온 집 있는지는 여기서 보면 됨:"
 
-BUILD = {"band": build_band}
-TITLE = {"band": "번호대"}
+BUILD = {"band": build_band, "winner": build_winner}
+TITLE = {"band": "번호대", "winner": "1등 번호"}
 
 
 def kst(now):
@@ -108,6 +153,8 @@ def due(now):
     kinds = []
     if local.weekday() == BAND_DAY and BAND_TIME <= hm < BAND_UNTIL:
         kinds.append("band")
+    if WINNER_TIME <= hm < WINNER_UNTIL:
+        kinds.append("winner")
     return kinds
 
 
