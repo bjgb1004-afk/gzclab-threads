@@ -45,7 +45,7 @@ FADE = 0.4
 PROFILE = {
     "genius": {"start": 0.0, "speed": 1.6},   # 12초 → 7.5초
     "replay": {"start": 0.0, "speed": 1.25},  # 10초 → 8초. 결과(합계 금액)까지 나온다
-    "band": {"start": 2.8, "speed": 1.0},     # 7초 → 4.2초. 첫 2초는 '당첨 0원' 목록이라 자른다
+    "band": {"start": 3.2, "speed": 1.0},     # 7초 → 3.8초. 첫 2초는 '당첨 0원' 목록이라 자른다
 }
 
 
@@ -168,6 +168,10 @@ def reel_name(kind, day):
 def build_for(kind, day, footage=None, draws=None):
     """그날 릴스 한 편. 훅은 카드·캡션과 같은 문장을 쓴다."""
     hook, sub = C.slide_hook(kind, day, draws)
+    if kind == "genius":
+        # 바탕 영상이 다섯 천재 탭을 차례로 훑는다. 그날 한 명만 말하면 화면(아르키메데스부터 시작)과 어긋난다.
+        draw_no = sub.split("회")[0]
+        hook, sub = "수학자 5명의 방식으로 뽑은 번호", f"{draw_no}회 · 천재들의 한수"
     footage = pathlib.Path(footage) if footage else FOOTAGE / f"{kind}.mp4"
     p = PROFILE.get(kind, {})
     start, speed = p.get("start", 0.0), p.get("speed", 1.0)

@@ -22,5 +22,6 @@ cards/ig-*.jpg
 
 # 릴스 작업물. 바탕 영상(assets/footage)은 손으로 넣고, 완성본은 발행 뒤 호스팅으로 가므로
 # 저장소에 쌓지 않는다. 점검용 파일도 마찬가지.
-reels/_*
+assets/footage/
+reels/
 cards/_*
