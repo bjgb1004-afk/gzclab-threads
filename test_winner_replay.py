@@ -95,7 +95,7 @@ def test_instagram_card_and_hook_use_same_draw():
     hook, sub = C.slide_hook("replay", day, DRAWS)
     w = rp.winner_replay(day.isoformat(), DRAWS)
     assert str(w["draw_no"]) in hook
-    assert sub == "지난 회차 1등 번호"
+    assert "억원" in hook and "이 회차를 빼고" in sub
 
 
 def test_instagram_caption_separates_the_two_numbers():

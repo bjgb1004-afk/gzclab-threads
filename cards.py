@@ -335,8 +335,8 @@ def slide_hook(kind, day, draws=None):
         return gi["how"].replace(" 5게임", ""), f"{draw_no}회 · {gi['name']}"
     if kind == "replay":
         w = rp.winner_replay(day.isoformat(), draws if draws is not None else rp.fetch_draws())
-        return (f"{w['draw_no']}회 1등 번호, 다른 회차에선 {rp.won(w['res']['gross'])}이었습니다",
-                "지난 회차 1등 번호")
+        return (f"{w['draw_no']}회 1등 번호, 그 회차에 {w['own_prize'] / 100000000:.1f}억원 나왔습니다",
+                f"이 회차를 빼고 나머지 {w['res']['draws']}회에 돌려보면?")
     return "다섯 구간 중 한 곳은 일부러 비웠습니다", "오늘의 번호대 분석"
 
 

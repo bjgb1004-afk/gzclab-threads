@@ -40,6 +40,14 @@ OUTRO_SEC = 2.5
 BODY_SEC = 7.0           # 바탕 영상에서 쓸 길이
 FADE = 0.4
 
+# 소재별 편집. start: 앞에서 버릴 초(첫 장면이 불리한 영상), speed: 배속(스크롤 사이 멈춤을 줄이고
+# 결과 화면까지 담는다). 녹화본을 다시 찍으면 여기만 맞춘다.
+PROFILE = {
+    "genius": {"start": 0.0, "speed": 1.6},   # 12초 → 7.5초
+    "replay": {"start": 0.0, "speed": 1.25},  # 10초 → 8초. 결과(합계 금액)까지 나온다
+    "band": {"start": 2.8, "speed": 1.0},     # 7초 → 4.2초. 첫 2초는 '당첨 0원' 목록이라 자른다
+}
+
 
 def run(args):
     """ffmpeg 호출. 실패하면 마지막 줄들을 그대로 보여준다 — 조용히 넘어가면 원인을 못 찾는다."""
@@ -106,7 +114,7 @@ def outro_png(path):
     return path
 
 
-def build(footage, hook, sub, out_path, body_sec=BODY_SEC):
+def build(footage, hook, sub, out_path, body_sec=BODY_SEC, start=0.0, speed=1.0):
     """바탕 영상 + 훅 + 마무리 → 릴스 한 편."""
     footage = pathlib.Path(footage)
     if not footage.exists():
@@ -124,13 +132,15 @@ def build(footage, hook, sub, out_path, body_sec=BODY_SEC):
         # 1) 바탕 영상을 9:16으로 채우고(넘치는 쪽은 잘라낸다) 길이를 맞춘 뒤 훅을 얹는다.
         #    훅은 HOOK_SEC 동안만 보이고 부드럽게 사라진다.
         vf = (
-            f"scale={RW}:{RH}:force_original_aspect_ratio=increase,"
+            f"setpts=PTS/{speed},scale={RW}:{RH}:force_original_aspect_ratio=increase,"
             f"crop={RW}:{RH},fps={FPS},format=yuv420p[v];"
             f"[1:v]format=rgba,fade=t=out:st={HOOK_SEC - FADE}:d={FADE}:alpha=1[hk];"
             f"[v][hk]overlay=0:0:format=auto,trim=0:{body_sec},setpts=PTS-STARTPTS[outv]"
         )
         run(["ffmpeg", "-y", "-loglevel", "error",
-             "-t", str(body_sec), "-i", str(footage), "-i", str(hk),
+             "-ss", str(start), "-t", str(body_sec * speed), "-i", str(footage),
+             # 훅은 정지 이미지라 한 프레임뿐이면 페이드가 걸리지 않고 끝까지 남는다 → 반복 입력으로 시간축을 준다
+             "-loop", "1", "-framerate", str(FPS), "-t", str(body_sec), "-i", str(hk),
              "-filter_complex", vf, "-map", "[outv]",
              "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-an", str(body)])
 
@@ -159,7 +169,18 @@ def build_for(kind, day, footage=None, draws=None):
     """그날 릴스 한 편. 훅은 카드·캡션과 같은 문장을 쓴다."""
     hook, sub = C.slide_hook(kind, day, draws)
     footage = pathlib.Path(footage) if footage else FOOTAGE / f"{kind}.mp4"
-    return build(footage, hook, sub, OUT / f"{reel_name(kind, day)}.mp4")
+    p = PROFILE.get(kind, {})
+    start, speed = p.get("start", 0.0), p.get("speed", 1.0)
+    # 쓸 수 있는 길이(버린 앞부분 제외, 배속 반영)만큼만 쓴다. 영상이 짧은데 7초를 요구하면 끝이 멈춘 화면이 된다.
+    body = min(BODY_SEC if "speed" not in p else 99.0, max(1.0, (_duration(footage) - start) / speed))
+    return build(footage, hook, sub, OUT / f"{reel_name(kind, day)}.mp4",
+                 body_sec=body, start=start, speed=speed)
+
+
+def _duration(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                          "-of", "csv=p=0", str(path)], capture_output=True, text=True).stdout.strip()
+    return float(out)
 
 
 def available():
