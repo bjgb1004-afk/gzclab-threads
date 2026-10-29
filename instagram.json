@@ -822,7 +822,18 @@
       "media_id": "18122366162474003",
       "url": "https://raw.githubusercontent.com/bjgb1004-afk/gzclab-threads/main/cards/replay-2026-10-28.jpg",
       "slides": 3,
-      "at": "2026-10-28T11:21:04+00:00"
+      "at": "2026-10-28T11:21:04+00:00",
+      "insights": {
+        "reach": 0,
+        "likes": 1,
+        "comments": 0,
+        "saved": 0,
+        "shares": 0,
+        "views": 0,
+        "total_interactions": 1,
+        "profile_visits": 0,
+        "follows": 0
+      }
     },
     "genius-2026-10-29": {
       "media_id": "17988712214882323",
