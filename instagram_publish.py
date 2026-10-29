@@ -1,13 +1,12 @@
-"""인스타그램 자동 발행. 평일 하루 2건 — 천재들의 한수(점심), 놓친 당첨금(저녁).
+"""인스타그램 자동 발행. 평일 하루 2건 — 천재들의 한수(점심), 놓친 당첨금(저녁). 릴스(영상)로 올린다.
 
 Threads(publish.py)와 구조가 같다. 컨테이너를 만들고 → 발행하는 2단계다. 표준 라이브러리만 쓴다.
 
-**이미지는 공개 URL이어야 한다.** 인스타 서버가 그 주소로 직접 받아간다. 그래서 카드를
-저장소에 커밋하고 raw.githubusercontent 주소를 넘긴다. tick이 `ensure_cards`로 그날 카드를
-만들어 커밋하고, 푸시가 끝난 다음 틱(5분 뒤)에 발행된다. 손으로 할 일은 없다.
-
-발행 전에 그 주소가 실제로 열리는지 확인한다(HEAD). 안 열리면 올리지 않고 알림만 보낸다.
-깨진 이미지로 컨테이너를 만들면 그 컨테이너가 계정에 남는다.
+**영상도 공개 URL이어야 한다.** 인스타 서버가 그 주소로 직접 받아간다. 영상은 git에
+커밋하지 않으므로(.gitignore의 reels/) GitHub Release 애셋으로 올려 그 주소를 넘긴다.
+업로드는 API 호출 한 번으로 바로 공개되므로 사진 때처럼 틱을 하나 더 기다릴 필요가
+없다 — 만들기·올리기·발행을 한 틱 안에서 끝낸다. 발행이 끝나면(성공·실패 모두) 그
+애셋은 지운다.
 
 한도: 24시간 100건. 하루 2건이면 2%다.
 """
@@ -25,16 +24,16 @@ import urllib.request
 import band_gen as bg
 import cards
 import lotto_gen as g
+import reel
 import replay as rp
 from publish import telegram
 
 HERE = pathlib.Path(__file__).parent
 STATE = HERE / "instagram.json"       # 발행 기록. 같은 건을 두 번 올리지 않기 위한 것
 API = "https://graph.instagram.com/v23.0"
-
-# 카드 주소. Pages가 아니라 raw를 쓴다 — 저장소 설정에서 켤 것이 없고, 배포 대기 없이
-# 푸시된 직후부터 image/jpeg로 받힌다(2026-10-03 확인).
-CARD_BASE = "https://raw.githubusercontent.com/bjgb1004-afk/gzclab-threads/main/cards"
+GITHUB_API = "https://api.github.com"
+GH_REPO = os.environ.get("GITHUB_REPOSITORY", "bjgb1004-afk/gzclab-threads")
+REEL_RELEASE_TAG = "reel-host"
 
 APP_LINK = "https://gzclab.com/lottomap/?c=ig"
 
@@ -56,6 +55,7 @@ def kinds_for(day):
 
 TOKEN = None
 IG_USER_ID = None
+GH_TOKEN = None
 
 
 # ---------- API ----------
@@ -69,16 +69,6 @@ def api(path, params):
     except urllib.error.HTTPError as e:
         # publish.py와 같은 이유로 본문을 여기서 읽는다. 안 그러면 로그에 코드만 남는다.
         raise RuntimeError(f"{path} {e.code}: {e.read().decode(errors='replace')[:400]}") from None
-
-
-def image_reachable(url):
-    """인스타 서버가 받아갈 수 있는 주소인지 먼저 확인한다."""
-    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "gzclab-threads"})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status == 200
-    except Exception:
-        return False
 
 
 CAPTION_LIMIT = 2200   # 넘기면 글이 잘린 채 올라간다
@@ -99,78 +89,6 @@ def user_id():
     return IG_USER_ID
 
 
-def publish_image(image_url, caption):
-    """컨테이너 생성 → 발행. 발행된 미디어 id."""
-    if len(caption) > CAPTION_LIMIT:
-        raise RuntimeError(f"캡션 {len(caption)}자 — 한도 {CAPTION_LIMIT} 초과")
-    uid = user_id()
-    container = api(f"{uid}/media", {
-        "image_url": image_url,
-        "caption": caption,
-        "access_token": TOKEN,
-    })["id"]
-    # Threads와 같은 전파 지연이 있다. 사진은 보통 바로 되지만 한 번 실패하면 글이 통째로 빠지므로
-    # 기다렸다 재시도한다.
-    last = None
-    for wait in (3, 10, 30):
-        time.sleep(wait)
-        try:
-            return api(f"{uid}/media_publish", {
-                "creation_id": container,
-                "access_token": TOKEN,
-            })["id"]
-        except RuntimeError as e:
-            last = e
-    raise last
-
-
-def publish_carousel(image_urls, caption):
-    """여러 장을 한 글로. 자식 컨테이너 → 부모(CAROUSEL) → 발행.
-
-    왜 캐러셀로 바꿨나 (2026-10-27): 단일 이미지는 넘기면 끝이지만 여러 장이면 넘기는
-    동작 자체가 체류 시간이 되고, 도달 1명당 참여가 더 높다. 1장이 표지이자 섬네일이다.
-
-    자식에는 caption을 넣지 않는다 — 부모에만 붙는다. 자식에 넣으면 조용히 무시된다.
-    """
-    if not 2 <= len(image_urls) <= 10:
-        raise RuntimeError(f"캐러셀은 2~10장이어야 한다 — {len(image_urls)}장")
-    if len(caption) > CAPTION_LIMIT:
-        raise RuntimeError(f"캡션 {len(caption)}자 — 한도 {CAPTION_LIMIT} 초과")
-    uid = user_id()
-
-    children = []
-    for url in image_urls:
-        children.append(api(f"{uid}/media", {
-            "image_url": url,
-            "is_carousel_item": "true",
-            "access_token": TOKEN,
-        })["id"])
-
-    parent = api(f"{uid}/media", {
-        "media_type": "CAROUSEL",
-        "children": ",".join(children),
-        "caption": caption,
-        "access_token": TOKEN,
-    })["id"]
-
-    # 자식이 여럿이라 단일 사진보다 준비가 늦다. 단일보다 길게 기다린다.
-    last = None
-    for wait in (5, 15, 30, 60):
-        time.sleep(wait)
-        try:
-            return api(f"{uid}/media_publish", {
-                "creation_id": parent,
-                "access_token": TOKEN,
-            })["id"]
-        except RuntimeError as e:
-            last = e
-    raise last
-
-
-# 릴스 영상 주소. 사진과 달리 raw.githubusercontent는 .mp4를 application/octet-stream으로
-# 돌려준다(2026-10-27 확인). 인스타 영상 수집이 이를 거부할 수 있어 주소 기준을 밖에서
-# 바꿀 수 있게 둔다 — 다른 호스팅으로 옮길 때 코드를 고치지 않는다.
-REEL_BASE = os.environ.get("REEL_BASE_URL", f"{CARD_BASE.rsplit('/', 1)[0]}/reels")
 REEL_POLL = (10, 15, 20, 30, 30, 45, 60)  # 영상은 서버가 변환을 끝내야 발행된다
 
 
@@ -212,6 +130,75 @@ def publish_reel(video_url, caption, cover_url=None):
         raise RuntimeError(f"영상 변환이 끝나지 않았습니다(마지막 상태 {code})")
 
     return api(f"{uid}/media_publish", {"creation_id": container, "access_token": TOKEN})["id"]
+
+
+# ---------- 영상 호스팅 (GitHub Release 애셋) ----------
+# 사진은 저장소에 커밋해 raw.githubusercontent로 받혔지만, 영상은 커밋하지 않기로
+# 했다(.gitignore의 reels/·assets/footage/ 참고 — 쌓이면 히스토리가 영원히 커진다).
+# 대신 release 애셋으로 올린다. 업로드가 API 호출 한 번으로 바로 공개 URL이 되므로
+# 사진처럼 "이 틱에서 만들고 다음 틱에서 발행"할 필요가 없다 — 발행까지 한 틱에 끝낸다.
+# 토큰은 새 시크릿을 안 만들고 Actions가 자동으로 주는 GITHUB_TOKEN을 쓴다
+# (워크플로 permissions: contents: write가 release 생성·업로드 권한을 포함한다).
+
+def gh_api(method, path, data=None, raw=False, content_type="application/json"):
+    headers = {
+        "Authorization": f"Bearer {GH_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    body = None
+    if raw:
+        body = data
+        headers["Content-Type"] = content_type
+    elif data is not None:
+        body = json.dumps(data).encode()
+    req = urllib.request.Request(f"{path}" if path.startswith("http") else f"{GITHUB_API}/{path}",
+                                  data=body, method=method, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            out = r.read()
+            return json.loads(out) if out else None
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"{method} {path} {e.code}: {e.read().decode(errors='replace')[:400]}") from None
+
+
+def ensure_release():
+    """릴스 영상을 올릴 release id. 없으면 만든다(최초 1회뿐, 이후는 재사용)."""
+    try:
+        return gh_api("GET", f"repos/{GH_REPO}/releases/tags/{REEL_RELEASE_TAG}")["id"]
+    except RuntimeError as e:
+        if "404" not in str(e):
+            raise
+    created = gh_api("POST", f"repos/{GH_REPO}/releases", {
+        "tag_name": REEL_RELEASE_TAG,
+        "name": "릴스 영상 호스팅 (자동)",
+        "body": "인스타 릴스 업로드용 임시 저장소. 발행되면 그 애셋은 바로 지워진다.",
+        "prerelease": True,
+    })
+    return created["id"]
+
+
+def upload_reel_asset(release_id, path):
+    """영상을 release 애셋으로 올리고 {id, url}을 돌려준다.
+
+    같은 이름 애셋이 이미 있으면 먼저 지운다 — GitHub가 중복 이름을 거부한다.
+    """
+    name = path.name
+    for a in gh_api("GET", f"repos/{GH_REPO}/releases/{release_id}/assets") or []:
+        if a["name"] == name:
+            gh_api("DELETE", f"repos/{GH_REPO}/releases/assets/{a['id']}")
+            break
+    uploaded = gh_api(
+        "POST",
+        f"https://uploads.github.com/repos/{GH_REPO}/releases/{release_id}/assets"
+        f"?name={urllib.parse.quote(name)}",
+        data=path.read_bytes(), raw=True, content_type="video/mp4",
+    )
+    return {"id": uploaded["id"], "url": uploaded["browser_download_url"]}
+
+
+def delete_reel_asset(asset_id):
+    gh_api("DELETE", f"repos/{GH_REPO}/releases/assets/{asset_id}")
 
 
 # ---------- 캡션 ----------
@@ -340,30 +327,27 @@ def run_auto(now, dry=False):
     for kind, key, day in due(now):
         if key in state["published"] or state.get("fails", {}).get(key, 0) >= MAX_TRIES:
             continue
-        name, caption = build(kind, day)
-        # 표지 → 알맹이 → 안내 3장. 1장이 섬네일이라 순서를 바꾸지 말 것.
-        urls = [f"{CARD_BASE}/{name}-hook.jpg",
-                f"{CARD_BASE}/{name}.jpg",
-                f"{CARD_BASE}/{name}-cta.jpg"]
+        draws = rp.fetch_draws() if kind in ("replay", "band") else None
+        _, caption = build(kind, day, draws)
 
         if dry:
-            print(f"[{key}] {len(urls)}장\n" + "\n".join(urls) + f"\n{caption}\n{'-' * 50}")
-            continue
-        missing = [u for u in urls if not image_reachable(u)]
-        if missing:
-            # 카드를 방금 만들었으면 아직 커밋·푸시 전이다. 다음 틱에 다시 온다.
-            bump(state, key, "카드 주소가 안 열림\n" + "\n".join(missing))
+            print(f"[{key}] {caption}\n{'-' * 50}")
             continue
         try:
-            media_id = publish_carousel(urls, caption)
+            video_path = reel.build_for(kind, day, draws=draws)
+            release_id = ensure_release()
+            asset = upload_reel_asset(release_id, video_path)
+            try:
+                media_id = publish_reel(asset["url"], caption)
+            finally:
+                # 발행 성공·실패와 무관하게 임시 애셋은 지운다 — 쌓아둘 이유가 없다.
+                delete_reel_asset(asset["id"])
         except Exception as e:
             print(e, file=sys.stderr)
             bump(state, key, f"발행 실패\n{e}")
             continue
         state["published"][key] = {
             "media_id": media_id,
-            "url": urls[1],
-            "slides": len(urls),
             "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         }
         state.get("fails", {}).pop(key, None)
@@ -372,13 +356,13 @@ def run_auto(now, dry=False):
     return 0
 
 
-def build(kind, day):
-    """(이미지 파일명, 캡션). 파일명은 cards.card_name 한 곳에서만 정한다."""
+def build(kind, day, draws=None):
+    """(카드 파일명, 캡션). 파일명은 cards.card_name 한 곳에서만 정한다 — 릴스 영상 이름은 reel.reel_name이 따로 정한다."""
     name = cards.card_name(kind, day)
     if kind == "genius":
         draw_no = g.upcoming_draw_no(datetime.datetime.combine(day, datetime.time(12), cards.KST))
         return name, genius_caption(draw_no, g.GENIUSES[day.weekday()]["id"])
-    draws = rp.fetch_draws()
+    draws = draws if draws is not None else rp.fetch_draws()
     if kind == "replay":
         return name, replay_caption(rp.winner_replay(day.isoformat(), draws))
     if kind == "band":
@@ -386,25 +370,6 @@ def build(kind, day):
         games = bg.generate_daily_band_games(key)
         return name, band_caption(key, games, rp.replay(games[0]["numbers"], draws))
     raise ValueError(kind)
-
-
-def ensure_cards(now):
-    """그날 올릴 카드가 저장소에 없으면 만든다. tick이 발행보다 먼저 부른다.
-
-    인스타는 공개 URL로 이미지를 받아가므로 커밋·푸시된 뒤에야 올릴 수 있다. 그래서
-    이 틱에서 만들어지고 다음 틱에서 발행된다. 이미 있으면 아무것도 하지 않는다.
-    """
-    day = now.astimezone(cards.KST).date()
-    made = []
-    for kind in kinds_for(day):
-        made += cards.build_slides(kind, day)
-    # 발행이 끝난 카드는 인스타가 자기 쪽에 복사해 두므로 저장소에 남길 필요가 없다.
-    # 안 지우면 하루 300KB씩 쌓여 체크아웃만 느려진다. 손으로 넣은 파일은 건드리지 않는다.
-    keep = {p.name for p in made}
-    for old_card in cards.OUT.glob("*.jpg"):
-        if old_card.name.startswith(("genius-", "replay-", "band-")) and old_card.name not in keep:
-            old_card.unlink()
-    return made
 
 
 def me():
@@ -418,10 +383,6 @@ def main(argv=()):
     if "--check" in argv:
         print(json.dumps(me(), ensure_ascii=False))
         return 0
-    if "--cards" in argv:
-        for p in ensure_cards(datetime.datetime.now(datetime.timezone.utc)):
-            print(p.name)
-        return 0
     dry = "--dry" in argv
     now = datetime.datetime.now(datetime.timezone.utc)
     if "--now" in argv:
@@ -432,6 +393,7 @@ def main(argv=()):
 if __name__ == "__main__":
     TOKEN = os.environ.get("IG_TOKEN")
     IG_USER_ID = os.environ.get("IG_USER_ID")
+    GH_TOKEN = os.environ.get("GITHUB_TOKEN")
     if not (TOKEN and IG_USER_ID):
         print("IG_TOKEN / IG_USER_ID 미설정 — 아무것도 하지 않음", file=sys.stderr)
         sys.exit(0)

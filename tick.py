@@ -71,11 +71,10 @@ def weekly_draw_due(queue, now):
 
 
 def instagram(now):
-    """인스타 평일 2건. 카드를 먼저 만들고(없을 때만) 커밋된 카드로 발행한다.
+    """인스타 평일 2건. 릴스 영상을 만들어 GitHub Release 애셋으로 올리고 발행까지 한 틱에 끝낸다.
 
-    인스타는 이미지를 공개 URL로 받아가므로 이 틱에서 만든 카드는 다음 틱에서 올라간다
-    (커밋·푸시는 워크플로가 매 틱 한다). cards.py가 PIL을 쓰므로 여기서 늦게 import한다 —
-    인스타 쪽 의존성이 없는 러너에서 스레드 파이프라인까지 멈추면 안 된다.
+    cards.py가 PIL을 쓰므로(릴스 자막 렌더링에도 쓰임) 여기서 늦게 import한다 — 인스타 쪽
+    의존성이 없는 러너에서 스레드 파이프라인까지 멈추면 안 된다.
     """
     try:
         import instagram_publish as ip
@@ -87,7 +86,7 @@ def instagram(now):
     ip.TOKEN = os.environ["IG_TOKEN"]
     # IG_USER_ID는 없어도 된다. 없으면 토큰에서 직접 받아온다.
     ip.IG_USER_ID = os.environ.get("IG_USER_ID")
-    ip.ensure_cards(now)
+    ip.GH_TOKEN = os.environ["GITHUB_TOKEN"]
     ip.run_auto(now)
     # 성적을 거둔다(24시간 지난 글만, 글당 한 번). 발행이 실패해도 이건 돌아야 하므로
     # 같은 try 안에 두지 않는다 — 48건을 올리는 동안 측정이 0건이었던 게 이걸 안 해서다.
