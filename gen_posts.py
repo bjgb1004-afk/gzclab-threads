@@ -91,14 +91,13 @@ def t_famous(seed, draws):
     game, label = pick(FAMOUS, seed)
     res = rp.replay(game, draws)
     if res["hits"]:
-        line = (
-            f"{res['draws']}회 중 {res['hits']}번 등수에 들었음. "
-            f"세후 다 합쳐서 {rp.won(res['net'])}, 제일 잘 나온 건 {res['best_draw']}회 {res['best']}등."
-        )
+        title = f"{label} 찍은 번호, {res['draws']}회 중 {res['hits']}번은 등수에 들었음"
+        line = f"세후 다 합쳐서 {rp.won(res['net'])}, 제일 잘 나온 건 {res['best_draw']}회 {res['best']}등."
     else:
-        line = f"{res['draws']}회 동안 한 번도 등수에 못 들었음."
+        title = f"{label} 찍은 번호, {res['draws']}회 동안 한 번도 등수에 못 들었음"
+        line = "그래도 다음 회차에 나올 확률은 다른 번호랑 똑같음."
     return compose(
-        f"{label} 찍은 번호, 지금까지 성적",
+        title,
         [g.fmt(game), line, "앞으로 어떻게 될지는 모름. 지나간 회차를 되돌려본 것뿐임."],
         "자기 번호 6개 댓글에 남겨봐. 똑같이 돌려서 답 달아줌.\n4시간 지나면 답 못 달 수도 있음.",
         seed,
@@ -114,10 +113,11 @@ def t_cold(seed, draws):
     now = draws[-1]["no"]
     # 한 번도 안 나온 번호는 "며칠째 안 나옴"을 셀 수 없다(실제 데이터엔 없지만 방어한다).
     cold = sorted((n for n in range(1, 46) if n in last), key=lambda n: last[n])[:3]
-    rows = "\n".join(f"{n:02d}번 — {now - last[n]}회째 안 나옴 (마지막 {last[n]}회)" for n in cold)
+    top = cold[0]
+    rest = "\n".join(f"{n:02d}번 — {now - last[n]}회째 (마지막 {last[n]}회)" for n in cold[1:])
     return compose(
-        f"{now}회까지 제일 오래 안 나온 번호 3개",
-        [rows, "오래 쉰 번호가 나올 차례라는 뜻은 아님. 매 회차 확률은 똑같음."],
+        f"{top:02d}번, {now - last[top]}회째 안 나오고 있음 (마지막 {last[top]}회)",
+        [rest, "오래 쉰 번호가 나올 차례라는 뜻은 아님. 매 회차 확률은 똑같음."],
         "다음엔 반대로 제일 자주 나온 번호 올림.",
         seed,
     ), None
@@ -127,11 +127,12 @@ def t_hot(seed, draws):
     window = pick(WINDOWS[:3], seed)
     use = window_of(draws, window)
     c = collections.Counter(n for d in use for n in d["numbers"])
-    rows = "\n".join(f"{n:02d}번 — {cnt}번" for n, cnt in c.most_common(3))
+    top, (n1, cnt1) = c.most_common(3), c.most_common(1)[0]
+    rest = "\n".join(f"{n:02d}번 — {cnt}번" for n, cnt in top[1:])
     return compose(
-        f"{scope_ko(window, len(use))}에 제일 많이 나온 번호",
-        [rows, f"{len(use)}회면 번호 하나당 평균 {len(use) * 6 / 45:.1f}번이 기대값임. 위 숫자는 그보다 위."],
-        "이 숫자로 뭘 하라는 건 아님. 기록이 그렇다는 것뿐임.",
+        f"{n1:02d}번, {scope_ko(window, len(use))} 제일 많이 나왔음 — {cnt1}번",
+        [rest, f"{len(use)}회면 번호 하나당 평균 {len(use) * 6 / 45:.1f}번이 기대값임. 셋 다 그보다 위."],
+        "많이 나왔다고 또 나올 확률이 오르진 않음 — 그래프가 그렇다는 것뿐.",
         seed,
     ), None
 
@@ -142,9 +143,10 @@ def t_band(seed, draws):
     avg = band_avg(use)
     rows = "\n".join(f"{BAND_KO[i]} — 평균 {avg[i]:.1f}개" for i in range(len(avg)))
     top = max(range(len(avg)), key=lambda i: avg[i])
+    low = min(range(len(avg)), key=lambda i: avg[i])
     return compose(
-        f"{scope_ko(window, len(use))} 번호대별로 몇 개씩 나왔나",
-        [rows, f"제일 많은 건 {BAND_KO[top]}. 구간 폭이 다르니 개수만 보면 안 됨(40~45는 6칸뿐)."],
+        f"{BAND_KO[top]} {avg[top]:.1f}개 대 {BAND_KO[low]} {avg[low]:.1f}개 — {scope_ko(window, len(use))} 번호대 쏠림",
+        [rows, "구간 폭이 다르니 개수만 보면 안 됨(40~45는 6칸뿐)."],
         "이 비중대로 뽑은 5게임은 따로 올림.",
         seed,
     ), None
@@ -156,12 +158,12 @@ def t_prize(seed, draws):
     hi = max(withp, key=lambda d: d["prizes"][1])
     lo = min(withp, key=lambda d: d["prizes"][1])
     rows = (
-        f"최고 {hi['no']}회 — 1인당 {rp.won(hi['prizes'][1])} (세후 {rp.won(rp.after_tax(hi['prizes'][1]))})\n"
-        f"최저 {lo['no']}회 — 1인당 {rp.won(lo['prizes'][1])} (세후 {rp.won(rp.after_tax(lo['prizes'][1]))})"
+        f"최고 {hi['no']}회 — 1인당 세전 {rp.won(hi['prizes'][1])}\n"
+        f"최저 {lo['no']}회 — 1인당 세전 {rp.won(lo['prizes'][1])}"
     )
     return compose(
-        "역대 1등 당첨금, 제일 많을 때와 제일 적을 때",
-        [rows, "같은 1등인데 차이가 이만큼 남. 그 회차에 몇 명이 맞혔냐로 갈림."],
+        f"같은 1등인데 세후로 {rp.won(rp.after_tax(lo['prizes'][1]))} 대 {rp.won(rp.after_tax(hi['prizes'][1]))}",
+        [rows, "그 회차에 몇 명이 맞혔냐로 갈림."],
         "3억 넘는 구간은 33%, 그 아래는 22% 떼고 계산한 금액임.",
         seed,
     ), None
@@ -174,12 +176,9 @@ def t_shape(seed, draws):
     odd = collections.Counter(sum(n % 2 for n in d["numbers"]) for d in use)
     top_odd, cnt = odd.most_common(1)[0]
     sums = [sum(d["numbers"]) for d in use]
-    rows = (
-        f"홀짝은 {top_odd}:{6 - top_odd}이 {cnt}번으로 제일 많았음\n"
-        f"여섯 개 합은 평균 {sum(sums) // len(sums)}, 제일 작을 때 {min(sums)} 제일 클 때 {max(sums)}"
-    )
+    rows = f"홀짝은 {top_odd}:{6 - top_odd}이 {cnt}번으로 제일 많았음 (평균 합 {sum(sums) // len(sums)})"
     return compose(
-        f"{scope_ko(window, len(use))} 당첨번호 모양",
+        f"합계 최저 {min(sums)} 최고 {max(sums)} — {scope_ko(window, len(use))} 당첨번호",
         [rows, "6개가 전부 홀수거나 전부 짝수인 회차는 드물지만 있긴 있음."],
         "이 범위에 맞춰 뽑는다고 확률이 올라가진 않음. 모양이 그렇다는 기록임.",
         seed,
@@ -196,12 +195,11 @@ def t_number(seed, draws):
     partner = collections.Counter(x for d in rows for x in d["numbers"] if x != n)
     best, best_cnt = partner.most_common(1)[0]
     body = (
-        f"{len(draws)}회 중 {len(rows)}번 나왔음 (번호 하나당 평균은 {len(draws) * 6 // 45}번)\n"
-        f"마지막은 {rows[-1]['no']}회\n"
+        f"마지막은 {rows[-1]['no']}회 (평균은 {len(draws) * 6 // 45}번)\n"
         f"{best:02d}번과 제일 자주 붙어 나왔음 — {best_cnt}회 같이 나옴"
     )
     return compose(
-        f"{n:02d}번은 지금까지 이랬음",
+        f"{n:02d}번, {len(draws)}회 중 {len(rows)}번 나왔음",
         [body, "같이 나온 횟수가 많다고 묶여 다니는 건 아님. 회차가 많아서 생기는 숫자임."],
         "번호 하나씩 돌아가면서 올리는 중임.",
         seed,
@@ -214,6 +212,15 @@ ANALYSIS_HOW = {
     "pascal": "번호는 좁히지 않고 홀짝·저고·합계 모양으로만 조합을 거름",
     "euler": "전체출현 35·최근 50회 25·나머지그룹균형 20·서로소비율 20(%)로 점수를 매겨 15개로 좁힘",
     "gaussian": "번호마다 출현횟수가 기대치에서 몇 표준편차 벗어났는지 재서 0에 가까운 순으로 15개를 고름",
+}
+
+# 첫 줄 훅. "뭘 보나"식 설명 대신 숫자나 대조로 먼저 끈다.
+ANALYSIS_HOOK = {
+    "archimedes": "45개 번호를 15개로 줄이고 시작함",
+    "fibonacci": "황금비에 가까운 번호부터 줄을 세움",
+    "pascal": "번호는 안 줄인다 — 모양만 봄",
+    "euler": "서로소 비율까지 재서 15개로 줄임",
+    "gaussian": "출현횟수가 평균에 가장 가까운 15개만 남김",
 }
 
 
@@ -231,7 +238,7 @@ def t_genius(seed, draws):
         "분석법 다섯 가지를 돌려가며 쓰고, 토요일은 명당 번호."
     )
     return compose(
-        f"{recipes.KOREAN_NAME[rid]} — {recipes.LABEL[rid]}은 뭘 보나",
+        f"{recipes.KOREAN_NAME[rid]} 방식 — {ANALYSIS_HOOK[rid]}",
         [body, "번호는 본문에 없고, 댓글 남기면 닉네임으로 1게임씩 답으로 줌."],
         "토요일 밤에 댓글로 나간 번호까지 모아서 분석법별 성적 올림. 맞은 것만 골라 올리는 거 아님.",
         seed,
