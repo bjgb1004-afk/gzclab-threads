@@ -54,7 +54,7 @@ jobs:
         run: |
           pip install --quiet Pillow
           # 굵기 구분이 있는 CJK 글꼴. 깔리지 않으면 cards.py가 저장소의 Bold 하나로 떨어진다.
-          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk || true
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk ffmpeg || true
 
       - name: Loop
         env:
