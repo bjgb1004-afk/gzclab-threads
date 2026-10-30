@@ -1533,7 +1533,10 @@
     "text": "판매점에 있는 랜덤 뽑기 기계로 번호 뽑아본 적 있음?\n난 한 번 해봤는데 결국 자동이랑 뭐가 다른지 몰라서 다시 자동으로 감. 차이 아는 사람?",
     "post_id": "17973568821188802",
     "published_at": "2026-10-29T03:09:33+00:00",
-    "insights_attempts": 2
+    "insights_attempts": 3,
+    "insights": {
+      "error": "{\"error\":{\"message\":\"Unsupported get request. Object with ID '17973568821188802' does not exist, cannot be loaded due to missing permissions, or does not support this operation\",\"code\":100,\"type\":\"THA"
+    }
   },
   {
     "id": "talk-pm-30",
