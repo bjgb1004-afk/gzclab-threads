@@ -3237,7 +3237,14 @@
     "reply_mode": "replay",
     "post_id": "18380055583240414",
     "date": "2026-10-30",
-    "published_at": "2026-10-30T05:10:44+00:00"
+    "published_at": "2026-10-30T05:10:44+00:00",
+    "insights": {
+      "views": 502,
+      "likes": 2,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "spitto-stock-2026-10-30",
