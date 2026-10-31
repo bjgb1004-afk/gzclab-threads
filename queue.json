@@ -1554,7 +1554,10 @@
     "text": "6개 중에 하나도 못 맞춰본 적 있냐.\n난 있음. 그날 진짜 허탈했음. 최악 기록 댓글로 받는다.\n\n이런 잡담 매일 점심때 올림. 재밌으면 팔로우.",
     "post_id": "18109897721627573",
     "published_at": "2026-10-30T03:07:24+00:00",
-    "insights_attempts": 2
+    "insights_attempts": 3,
+    "insights": {
+      "error": "{\"error\":{\"message\":\"Unsupported get request. Object with ID '18109897721627573' does not exist, cannot be loaded due to missing permissions, or does not support this operation\",\"code\":100,\"type\":\"THA"
+    }
   },
   {
     "id": "talk-night-11",
