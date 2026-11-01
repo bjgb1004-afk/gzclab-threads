@@ -8,6 +8,7 @@ from PIL import Image
 
 import subprocess
 
+import cards as C
 import reel
 
 
@@ -45,6 +46,28 @@ def test_build_rejects_missing_footage():
         assert "없는파일" in str(e)
     else:
         raise AssertionError("없는 바탕 영상은 바로 알려야 한다")
+
+
+def test_hook_time_follows_text_length():
+    """글자가 많으면 훅이 길어져야 한다. 고정 3초였을 때 유저가 못 읽었다(2026-11-01)."""
+    짧 = reel.hook_sec("번호 공개", None)
+    긺 = reel.hook_sec("485회 1등 번호, 그 회차에 15.0억원 나왔습니다",
+                       "이 회차를 빼고 나머지 985회에 돌려보면?")
+    assert 짧 == reel.HOOK_MIN, "짧은 훅도 최소 시간은 준다"
+    assert 긺 > 짧 * 1.5, f"긴 훅이 안 길어졌다: {긺}"
+    assert (len("485회 1등 번호, 그 회차에 15.0억원 나왔습니다")
+            + len("이 회차를 빼고 나머지 985회에 돌려보면?")) / 긺 <= 7.0, "초당 7자를 넘기면 못 읽는다"
+
+
+def test_body_always_outlasts_hook(monkeypatch):
+    """바탕 영상이 짧아도 훅을 자르지 않는다 — 배속을 낮춰서 채운다."""
+    seen = {}
+    monkeypatch.setattr(reel, "_duration", lambda p: 3.0)   # 아주 짧은 클립
+    monkeypatch.setattr(reel, "build", lambda *a, **k: seen.update(k) or "x.mp4")
+    reel.build_for("band", datetime.date(2026, 11, 2))
+    hs = reel.hook_sec(*C.slide_hook("band", datetime.date(2026, 11, 2), None))
+    assert seen["body_sec"] >= hs, f"훅 {hs}s인데 화면은 {seen['body_sec']}s뿐"
+    assert seen["speed"] < 1.0, "짧은 클립은 느리게 틀어야 채워진다"
 
 
 def test_build_for_names_missing_footage():

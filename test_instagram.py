@@ -105,6 +105,9 @@ for d in range(5, 12):
 
 # ---------- 발행에 실패해도 임시 애셋은 지운다 ----------
 deleted = []
+# 이 파일은 모듈 수준에서 바로 도는 스크립트다. reel을 덮어쓴 채 끝나면 다음 테스트
+# 파일이 망가진 reel을 물려받는다(test_reel.py가 실제로 이것 때문에 깨졌다).
+_real_build_for = ip.reel.build_for
 ip.reel.build_for = lambda *a, **k: video
 ip.ensure_release = lambda: 99
 ip.upload_reel_asset = lambda rid, p: {"id": 7, "url": "https://x/y.mp4"}
@@ -135,6 +138,7 @@ try:
     assert len(sent) == 1, sent          # 셋째 실패에서 한 번만
     assert json.loads(tmp.read_text(encoding="utf-8"))["fails"]["genius-2026-10-05"] == ip.MAX_TRIES
 finally:
+    ip.reel.build_for = _real_build_for   # 다음 테스트 파일에 멀쩡한 reel을 넘긴다
     tmp.unlink(missing_ok=True)
 
 print("ok")

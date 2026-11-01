@@ -35,18 +35,32 @@ OUT = HERE / "reels"
 
 RW, RH = 1080, 1920      # 9:16. 릴스가 화면을 꽉 채우는 비율
 FPS = 30
-HOOK_SEC = 3.0           # 훅이 떠 있는 시간. 첫 3초에 멈추게 하지 못하면 나머지는 안 본다
-OUTRO_SEC = 2.5
-BODY_SEC = 7.0           # 바탕 영상에서 쓸 길이
+OUTRO_SEC = 3.5          # 마무리 CTA. 2.5초였을 땐 읽기 전에 끝났다
+TAIL_SEC = 2.0           # 훅이 사라진 뒤 앱 화면만 보이는 시간
+MAX_BODY = 20.0          # 사고 방지 상한. 긴 녹화본이 들어와도 릴스가 1분짜리가 되지 않게
 FADE = 0.4
 
-# 소재별 편집. start: 앞에서 버릴 초(첫 장면이 불리한 영상), speed: 배속(스크롤 사이 멈춤을 줄이고
-# 결과 화면까지 담는다). 녹화본을 다시 찍으면 여기만 맞춘다.
+# 훅 글자를 읽는 속도(자/초). 6.5는 큰 글씨를 편히 읽는 속도다 — 2026-11-01까지 훅이 글자
+# 수와 무관하게 3초 고정이라, band는 10.7자/초 replay는 18자/초를 요구했고 유저가 "글자를
+# 전부 읽지 못하겠다"고 했다. 훅 길이는 이제 글자 수가 정한다.
+READ_CPS = 6.5
+HOOK_MIN = 4.5
+
+# 소재별 편집. start: 앞에서 버릴 초, speed: 배속(스크롤 사이 멈춤을 줄인다).
+# 클립이 훅을 다 보여줄 만큼 길지 않으면 build_for가 speed를 알아서 낮춘다 — 글자가
+# 잘리는 일은 없다. 녹화본을 다시 찍으면 여기만 맞춘다.
 PROFILE = {
-    "genius": {"start": 0.0, "speed": 1.6},   # 12초 → 7.5초
-    "replay": {"start": 0.0, "speed": 1.25},  # 10초 → 8초. 결과(합계 금액)까지 나온다
-    "band": {"start": 3.2, "speed": 1.0},     # 7초 → 3.8초. 첫 2초는 '당첨 0원' 목록이라 자른다
+    "genius": {"start": 0.0, "speed": 1.6},
+    "replay": {"start": 0.0, "speed": 1.25},  # 결과(합계 금액)까지 담긴다
+    # 앞 3.2초를 버렸었다('당첨 0건·0원' 줄이 보여서). 훅의 어두운 막이 바로 그 자리를
+    # 덮으므로 버릴 필요가 없고, 덕분에 7초를 통째로 써서 훅 읽을 시간이 생긴다.
+    "band": {"start": 0.0, "speed": 1.0},
 }
+
+
+def hook_sec(hook, sub=None):
+    """훅이 떠 있어야 하는 시간. 글자가 많으면 길어진다."""
+    return max(HOOK_MIN, (len(hook) + len(sub or "")) / READ_CPS)
 
 
 def run(args):
@@ -91,8 +105,9 @@ def hook_png(hook, sub, path):
 
     block = len(lines) * int(size * 1.2) + (90 if sub else 0)
     top = 210
-    # 글자 뒤 어두운 막. 앱 화면이 밝아도 흰 글자가 읽힌다.
-    d.rectangle([0, top - 70, RW, top + block + 70], fill=(0, 0, 0, 150))
+    # 글자 뒤 어두운 막. 150이었을 땐 뒤의 앱 글자가 비쳐서 훅과 겹쳐 읽혔다
+    # (band은 하필 '당첨 0건 · 0원' 줄이 그 자리였다). 215면 글자만 보인다.
+    d.rectangle([0, top - 70, RW, top + block + 70], fill=(0, 0, 0, 215))
 
     y = top
     for ln in lines:
@@ -114,8 +129,11 @@ def outro_png(path):
     return path
 
 
-def build(footage, hook, sub, out_path, body_sec=BODY_SEC, start=0.0, speed=1.0):
+def build(footage, hook, sub, out_path, body_sec=None, start=0.0, speed=1.0):
     """바탕 영상 + 훅 + 마무리 → 릴스 한 편."""
+    hs = hook_sec(hook, sub)
+    if body_sec is None:
+        body_sec = hs + TAIL_SEC
     footage = pathlib.Path(footage)
     if not footage.exists():
         raise FileNotFoundError(f"바탕 영상이 없습니다: {footage}")
@@ -130,11 +148,11 @@ def build(footage, hook, sub, out_path, body_sec=BODY_SEC, start=0.0, speed=1.0)
         tail = td / "tail.mp4"
 
         # 1) 바탕 영상을 9:16으로 채우고(넘치는 쪽은 잘라낸다) 길이를 맞춘 뒤 훅을 얹는다.
-        #    훅은 HOOK_SEC 동안만 보이고 부드럽게 사라진다.
+        #    훅은 글자 수가 정한 시간(hook_sec)만큼 보이고 부드럽게 사라진다.
         vf = (
             f"setpts=PTS/{speed},scale={RW}:{RH}:force_original_aspect_ratio=increase,"
             f"crop={RW}:{RH},fps={FPS},format=yuv420p[v];"
-            f"[1:v]format=rgba,fade=t=out:st={HOOK_SEC - FADE}:d={FADE}:alpha=1[hk];"
+            f"[1:v]format=rgba,fade=t=out:st={hs - FADE}:d={FADE}:alpha=1[hk];"
             f"[v][hk]overlay=0:0:format=auto,trim=0:{body_sec},setpts=PTS-STARTPTS[outv]"
         )
         run(["ffmpeg", "-y", "-loglevel", "error",
@@ -175,8 +193,12 @@ def build_for(kind, day, footage=None, draws=None):
     footage = pathlib.Path(footage) if footage else FOOTAGE / f"{kind}.mp4"
     p = PROFILE.get(kind, {})
     start, speed = p.get("start", 0.0), p.get("speed", 1.0)
-    # 쓸 수 있는 길이(버린 앞부분 제외, 배속 반영)만큼만 쓴다. 영상이 짧은데 7초를 요구하면 끝이 멈춘 화면이 된다.
-    body = min(BODY_SEC if "speed" not in p else 99.0, max(1.0, (_duration(footage) - start) / speed))
+    avail = max(0.5, _duration(footage) - start)   # 버린 앞부분을 뺀 원본 길이
+    need = hook_sec(hook, sub) + TAIL_SEC          # 훅을 다 읽고도 앱 화면이 남아야 한다
+    # 클립이 모자라면 배속을 낮춰서 채운다. 글자를 자르는 쪽으로 타협하지 않는다 —
+    # 훅을 못 읽으면 영상이 하는 일이 없다.
+    speed = min(speed, avail / need)
+    body = min(MAX_BODY, avail / speed)
     return build(footage, hook, sub, OUT / f"{reel_name(kind, day)}.mp4",
                  body_sec=body, start=start, speed=speed)
 
