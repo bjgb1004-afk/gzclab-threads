@@ -6,6 +6,8 @@ import tempfile
 
 from PIL import Image
 
+import subprocess
+
 import reel
 
 
@@ -43,6 +45,25 @@ def test_build_rejects_missing_footage():
         assert "없는파일" in str(e)
     else:
         raise AssertionError("없는 바탕 영상은 바로 알려야 한다")
+
+
+def test_build_for_names_missing_footage():
+    """build()의 가드보다 _duration이 먼저 불린다. 거기서 빈 출력을 float()에 넘기면
+    "could not convert string to float" 만 남아 원인을 못 찾는다(2026-10-30 사고)."""
+    try:
+        reel._duration("없는파일.mp4")
+    except FileNotFoundError as e:
+        assert "없는파일" in str(e)
+    else:
+        raise AssertionError("없는 바탕 영상은 경로를 들고 죽어야 한다")
+
+
+def test_footage_is_committed():
+    """러너는 저장소를 받아서 돈다 — 바탕 영상이 커밋돼 있지 않으면 릴스가 매번 실패한다."""
+    tracked = subprocess.run(["git", "ls-files", "assets/footage"],
+                             capture_output=True, text=True, cwd=reel.HERE).stdout.split()
+    for kind in reel.PROFILE:
+        assert f"assets/footage/{kind}.mp4" in tracked, f"{kind}.mp4 미커밋"
 
 
 def test_available_lists_footage(monkeypatch):

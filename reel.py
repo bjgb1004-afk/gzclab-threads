@@ -182,8 +182,19 @@ def build_for(kind, day, footage=None, draws=None):
 
 
 def _duration(path):
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                          "-of", "csv=p=0", str(path)], capture_output=True, text=True).stdout.strip()
+    """바탕 영상 길이(초). 못 읽으면 바로 이유를 들고 죽는다.
+
+    예전엔 빈 출력을 그대로 float()에 넘겨서, 파일이 없을 때 로그에
+    "could not convert string to float: ''"만 남았다 — 러너에 영상이 없는 걸
+    사흘 동안 못 찾은 원인이다.
+    """
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                        "-of", "csv=p=0", str(path)], capture_output=True, text=True)
+    out = r.stdout.strip()
+    if not out:
+        if not pathlib.Path(path).exists():
+            raise FileNotFoundError(f"바탕 영상이 없습니다: {path}")
+        raise RuntimeError(f"바탕 영상 길이를 읽지 못했습니다: {path}\n{r.stderr.strip()}")
     return float(out)
 
 
