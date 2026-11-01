@@ -3365,7 +3365,14 @@
     "reply_mode": "replay",
     "post_id": "17884226076626960",
     "date": "2026-10-31",
-    "published_at": "2026-10-31T01:11:25+00:00"
+    "published_at": "2026-10-31T01:11:25+00:00",
+    "insights": {
+      "views": 375,
+      "likes": 5,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "winner-2026-10-31",
