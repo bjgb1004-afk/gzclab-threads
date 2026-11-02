@@ -20,8 +20,10 @@ import collect_insights
 import gen_draw_post
 import gen_posts
 import lotto_picks
+import midweek
 import publish
 import spitto
+import weekly_check
 from publish import telegram
 
 KST = datetime.timezone(datetime.timedelta(hours=9))
@@ -46,6 +48,9 @@ def due_slot_start(queue, now):
         return None
     h, m = passed[-1]
     start = local.replace(hour=h, minute=m, second=0, microsecond=0)
+    # 수요일 저녁 "번호 중간 점검"이 나갔으면 밤 슬롯은 비운다 — 하루 글 수를 늘리지 않는다.
+    if (h, m) == SLOTS[-1] and midweek.posted_today(queue, now):
+        return None
     for p in queue:
         # picks(07:07)·band(토 10:07)·spitto(16:07) 글은 제 시각에 따로 나간다. 그게 슬롯
         # 발행을 대신하면 그날 슬롯 글 하나가 조용히 사라진다. miss-는 폐지했지만 큐에 남은
@@ -116,6 +121,8 @@ def main():
     if weekly_draw_due(queue, now):
         step("draw", lambda: gen_draw_post.main([]))
     step("picks", lambda: lotto_picks.run_auto(now, dry=False))
+    # 수요일 18:07 번호 중간 점검(조회수 하락 대응 실험). 밤 슬롯 글을 대신한다.
+    step("midweek", lambda: midweek.run_auto(now, dry=False))
     # 토 10:07 번호대 분석. 하루 한 번, 그 뒤 4시간은 답글.
     step("band", lambda: band_picks.run_auto(now, dry=False))
     # 큐가 마르면 지난 회차 데이터로 pm/night 글을 찍어 채운다. 손으로 쓴 글이 남아 있으면
@@ -133,6 +140,8 @@ def main():
         step("spitto", lambda: spitto.run_auto(now, dry=False))
     step("reply", auto_reply.main)
     step("insights", collect_insights.main)
+    # 조회수 하락 대응 실험(11/4~11/10)의 점검 리포트. 2026-11-12 09:07 KST 이후 한 번만 나간다.
+    step("weekly_check", lambda: weekly_check.run(now))
     return 0
 
 
