@@ -3320,10 +3320,12 @@
   },
   {
     "id": "auto-2026-11-01-pm",
-    "status": "pending",
+    "status": "published",
     "slot": "pm",
     "text": "13번, 최근 300회 제일 많이 나왔음 — 50번\n\n매일 번호랑 기록 하나씩 꺼내 옴. 팔로우하면 안 찾아와도 뜸.\n\n16번 — 48번\n06번 — 48번\n\n300회면 번호 하나당 평균 40.0번이 기대값임. 셋 다 그보다 위.\n\n많이 나왔다고 또 나올 확률이 오르진 않음 — 그래프가 그렇다는 것뿐.",
-    "link": "https://gzclab.com/lottomap/?c=auto"
+    "link": "https://gzclab.com/lottomap/?c=auto",
+    "post_id": "18120450607770435",
+    "published_at": "2026-11-02T03:07:40+00:00"
   },
   {
     "id": "auto-2026-10-30-night",
