@@ -50,6 +50,8 @@ def rows(queue):
         i = x.get("insights") or {}
         if x.get("status") != "published" or not x.get("published_at") or "views" not in i:
             continue
+        if x["id"].startswith("hangul-"):   # 한글폭탄 글은 로또 글 실험과 따로 본다
+            continue
         t = datetime.datetime.fromisoformat(x["published_at"]).astimezone(KST)
         out.append({"id": x["id"], "kind": kind(x["id"]), "date": t.date(), "views": i["views"],
                     "likes": i.get("likes", 0), "replies": i.get("replies", 0),

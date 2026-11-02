@@ -19,6 +19,7 @@ import band_picks
 import collect_insights
 import gen_draw_post
 import gen_posts
+import hangul_promo
 import lotto_picks
 import midweek
 import publish
@@ -49,7 +50,8 @@ def due_slot_start(queue, now):
     h, m = passed[-1]
     start = local.replace(hour=h, minute=m, second=0, microsecond=0)
     # 수요일 저녁 "번호 중간 점검"이 나갔으면 밤 슬롯은 비운다 — 하루 글 수를 늘리지 않는다.
-    if (h, m) == SLOTS[-1] and midweek.posted_today(queue, now):
+    # 화·목 18:07 한글폭탄 글도 같은 방식으로 밤 슬롯을 대신한다.
+    if (h, m) == SLOTS[-1] and (midweek.posted_today(queue, now) or hangul_promo.posted_today(queue, now)):
         return None
     for p in queue:
         # picks(07:07)·band(토 10:07)·spitto(16:07) 글은 제 시각에 따로 나간다. 그게 슬롯
@@ -123,6 +125,9 @@ def main():
     step("picks", lambda: lotto_picks.run_auto(now, dry=False))
     # 수요일 18:07 번호 중간 점검(조회수 하락 대응 실험). 밤 슬롯 글을 대신한다.
     step("midweek", lambda: midweek.run_auto(now, dry=False))
+    # 한글폭탄 개발 일지(화·목 18:07, 11/3~11/26). 댓글은 사람이 직접 단다.
+    step("hangul", lambda: hangul_promo.run_auto(now, dry=False))
+    step("hangul_comments", lambda: hangul_promo.collect(now, publish.TOKEN))
     # 토 10:07 번호대 분석. 하루 한 번, 그 뒤 4시간은 답글.
     step("band", lambda: band_picks.run_auto(now, dry=False))
     # 큐가 마르면 지난 회차 데이터로 pm/night 글을 찍어 채운다. 손으로 쓴 글이 남아 있으면
