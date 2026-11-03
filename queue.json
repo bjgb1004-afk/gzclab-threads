@@ -3580,7 +3580,14 @@
     "reply_mode": "replay",
     "post_id": "17956975749027461",
     "date": "2026-11-02",
-    "published_at": "2026-11-02T05:09:15+00:00"
+    "published_at": "2026-11-02T05:09:15+00:00",
+    "insights": {
+      "views": 385,
+      "likes": 0,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "spitto-stock-2026-11-02",
