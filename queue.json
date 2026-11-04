@@ -3490,10 +3490,12 @@
   },
   {
     "id": "auto-2026-11-03-pm",
-    "status": "pending",
+    "status": "published",
     "slot": "pm",
     "text": "01번, 1247회 중 171번 나왔음\n\n이런 거 매일 하나씩 올림. 팔로우해두고 보면 됨.\n\n마지막은 1244회 (평균은 166번)\n28번과 제일 자주 붙어 나왔음 — 30회 같이 나옴\n\n같이 나온 횟수가 많다고 묶여 다니는 건 아님. 회차가 많아서 생기는 숫자임.\n\n번호 하나씩 돌아가면서 올리는 중임.",
-    "link": "https://gzclab.com/lottomap/?c=auto"
+    "link": "https://gzclab.com/lottomap/?c=auto",
+    "post_id": "18113712752599670",
+    "published_at": "2026-11-04T03:08:17+00:00"
   },
   {
     "id": "auto-2026-11-03-night",
