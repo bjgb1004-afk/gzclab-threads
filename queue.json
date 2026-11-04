@@ -3670,7 +3670,14 @@
     "reply_mode": "replay",
     "post_id": "17904933198656031",
     "date": "2026-11-03",
-    "published_at": "2026-11-03T05:08:17+00:00"
+    "published_at": "2026-11-03T05:08:17+00:00",
+    "insights": {
+      "views": 601,
+      "likes": 4,
+      "replies": 4,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "hangul-launch",
