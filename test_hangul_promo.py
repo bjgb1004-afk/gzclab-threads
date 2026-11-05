@@ -17,29 +17,48 @@ def at(m, d, h, mi):
 def test_all_posts_fit_and_are_not_auto_reply_targets():
     for p in hp.POSTS:
         t = hp.body(p)
+        if p.get("done"):
+            continue
         assert t and len(t) <= hp.LIMIT, p["key"]
         assert "구 이름 남겨줘" not in t          # 댓글은 사람이 단다
-        assert "댓글" in "\n".join(t.splitlines()[-3:])   # 끝에 댓글 요청이 하나 있어야 한다
+        tail = "\n".join(t.replace(hp.TAG, "").splitlines()[-3:])
+        assert "?" in tail or "댓글" in tail, p["key"]   # 끝에 대화를 여는 질문이 있어야 한다
 
 
-def test_schedule_is_tue_thu_at_1807():
-    assert all(p["date"].weekday() in (1, 3) for p in hp.POSTS)
-    assert hp.due_post(at(11, 3, 18, 6), []) is None
-    assert hp.due_post(at(11, 3, 18, 7), [])["key"] == "launch"
-    assert hp.due_post(at(11, 3, 19, 0), [{"id": "hangul-launch"}]) is None
-    assert hp.due_post(at(11, 4, 18, 7), []) is None
+def test_schedule_is_daily_1907_for_30_days():
+    live = [p for p in hp.POSTS if hp.body(p)]
+    assert len(live) == 30
+    days = [p["date"] for p in live]
+    assert days == [days[0] + datetime.timedelta(i) for i in range(30)]   # 빠진 날 없이 매일
+    assert hp.due_post(at(11, 6, 19, 6), []) is None
+    assert hp.due_post(at(11, 6, 19, 7), [])["key"] == "d01-charge"
+    assert hp.due_post(at(11, 6, 20, 0), [{"id": "hangul-d01-charge"}]) is None
+    assert hp.due_post(at(11, 3, 19, 7), []) is None          # 이미 나간 날은 다시 안 고른다
+
+
+def test_one_topic_tag_per_post():
+    for p in hp.POSTS:
+        t = hp.body(p)
+        if t:
+            assert t.count("#") == 1 and t.endswith("#한글게임")
+
+
+def test_wednesday_pm_slot_skipped_so_count_stays():
+    """수요일은 중간 점검(밤 슬롯 대체)과 한글폭탄 글이 겹친다. 점심 슬롯을 비워 하루 글 수를 맞춘다."""
+    assert tick.due_slot_start([], at(11, 11, 12, 7)) is None     # 수요일, 한글폭탄 예정일
+    assert tick.due_slot_start([], at(11, 12, 12, 7)) is not None # 목요일은 평소대로
 
 
 def test_feedback_post_falls_back_instead_of_inventing():
     p = next(p for p in hp.POSTS if p.get("feedback"))
-    assert p["text"] is None and hp.body(p) == p["fallback"]
+    assert p["text"] is None and hp.body(p) == p["fallback"] + hp.TAG
 
 
 def test_night_slot_skipped_on_hangul_day_only():
-    pub = at(11, 3, 18, 8).astimezone(datetime.timezone.utc).isoformat()
-    q = [{"id": "hangul-launch", "status": "published", "published_at": pub}]
-    assert tick.due_slot_start(q, at(11, 3, 21, 7)) is None
-    assert tick.due_slot_start(q, at(11, 4, 21, 7)) is not None
+    pub = at(11, 6, 19, 8).astimezone(datetime.timezone.utc).isoformat()
+    q = [{"id": "hangul-d01-charge", "status": "published", "published_at": pub}]
+    assert tick.due_slot_start(q, at(11, 6, 21, 7)) is None
+    assert tick.due_slot_start(q, at(11, 7, 21, 7)) is not None
 
 
 def test_weekly_check_ignores_hangul_posts():

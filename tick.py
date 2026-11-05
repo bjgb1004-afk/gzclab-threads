@@ -50,7 +50,10 @@ def due_slot_start(queue, now):
     h, m = passed[-1]
     start = local.replace(hour=h, minute=m, second=0, microsecond=0)
     # 수요일 저녁 "번호 중간 점검"이 나갔으면 밤 슬롯은 비운다 — 하루 글 수를 늘리지 않는다.
-    # 화·목 18:07 한글폭탄 글도 같은 방식으로 밤 슬롯을 대신한다.
+    # 수요일은 중간 점검(밤 슬롯 대체)에 한글폭탄 글(19:07)까지 더해지므로 점심 슬롯을 비운다.
+    if (h, m) == SLOTS[1] and local.weekday() == 2 and hangul_promo.scheduled_today(now):
+        return None
+    # 매일 19:07 한글폭탄 글도 같은 방식으로 밤 슬롯을 대신한다.
     if (h, m) == SLOTS[-1] and (midweek.posted_today(queue, now) or hangul_promo.posted_today(queue, now)):
         return None
     for p in queue:
