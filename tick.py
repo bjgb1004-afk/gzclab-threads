@@ -100,6 +100,13 @@ def instagram(now):
     ip.run_auto(now)
     # 성적을 거둔다(24시간 지난 글만, 글당 한 번). 발행이 실패해도 이건 돌아야 하므로
     # 같은 try 안에 두지 않는다 — 48건을 올리는 동안 측정이 0건이었던 게 이걸 안 해서다.
+    # '오늘의 1게임' 릴스 댓글에 번호 답글. 권한이 없으면 한 번 알리고 그날은 멈춘다(ig_comments).
+    try:
+        import ig_comments
+        st = ip.load_state()
+        ip.save_state(ig_comments.run(st, now, ip.TOKEN, telegram))
+    except Exception as e:
+        print(f"인스타 댓글 답글 실패: {e}", file=sys.stderr)
     try:
         import collect_ig_insights as ci
         ci.main(ip.TOKEN, now)

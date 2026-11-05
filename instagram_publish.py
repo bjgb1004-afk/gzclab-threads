@@ -25,6 +25,7 @@ import band_gen as bg
 import cards
 import lotto_gen as g
 import reel
+import daily_reel
 import replay as rp
 from publish import telegram
 
@@ -233,6 +234,20 @@ def _tail(kind, share):
     return f"{share}\n\n앱: {APP_LINK}\n\n{DISCLAIMER}\n\n{TAGS[kind]}"
 
 
+def daily_caption(kind, day):
+    """'오늘의 1게임' 릴스 캡션. 번호 하나만 주고, 더 받고 싶으면 댓글 — 스레드에서 터진 구조와 같다."""
+    l1, l2, how, nums, draw_no = daily_reel.today_game(kind, day)
+    return (
+        f"{l1} {l2}\n"                       # 훅 — 접히기 전에 보이는 한 줄
+        f"{how}입니다.\n\n"
+        f"오늘의 1게임\n{g.fmt(nums)}\n\n"
+        f"댓글에 닉네임 남기면 그 닉네임으로 {draw_no}회 1게임 뽑아서 답글 달아드립니다. "
+        "닉네임으로 정해져서 이번 주엔 다시 물어봐도 같은 번호입니다.\n"
+        "팔로우하면 매일 1게임이 올라옵니다.\n\n"
+        + _tail(kind, "같이 사는 사람 태그해서 각자 번호 받아가세요.")
+    )
+
+
 def genius_caption(draw_no, genius_id):
     gi = g.GENIUS_BY_ID[genius_id]
     games = g.genius_games(genius_id, draw_no)
@@ -327,14 +342,19 @@ def run_auto(now, dry=False):
     for kind, key, day in due(now):
         if key in state["published"] or state.get("fails", {}).get(key, 0) >= MAX_TRIES:
             continue
-        draws = rp.fetch_draws() if kind in ("replay", "band") else None
-        _, caption = build(kind, day, draws)
+        draws = rp.fetch_draws() if kind == "replay" else None
+        if kind in daily_reel.KINDS:
+            caption = daily_caption(kind, day)
+        else:
+            _, caption = build(kind, day, draws)
 
         if dry:
             print(f"[{key}] {caption}\n{'-' * 50}")
             continue
         try:
-            video_path = reel.build_for(kind, day, draws=draws)
+            # 번호 주는 릴스(천재·번호대)는 화면에 그날 번호를 직접 그린다. 놓친 당첨금은 앱 녹화 영상.
+            video_path = (daily_reel.build(kind, day)[0] if kind in daily_reel.KINDS
+                          else reel.build_for(kind, day, draws=draws))
             release_id = ensure_release()
             asset = upload_reel_asset(release_id, video_path)
             try:
