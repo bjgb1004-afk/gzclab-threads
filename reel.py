@@ -23,9 +23,10 @@ import subprocess
 import sys
 import tempfile
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 import cards as C
+import replay as rp
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -39,6 +40,10 @@ OUTRO_SEC = 3.5          # 마무리 CTA. 2.5초였을 땐 읽기 전에 끝났�
 TAIL_SEC = 2.0           # 훅이 사라진 뒤 앱 화면만 보이는 시간
 MAX_BODY = 20.0          # 사고 방지 상한. 긴 녹화본이 들어와도 릴스가 1분짜리가 되지 않게
 FADE = 0.4
+TOP = 340          # 훅 시작 높이. 위 UI(~250px)와 4:5 피드 자르기(285px) 둘 다 피한다
+END_Y = 1240       # 마무리 자막 높이. 아래 UI(~350px) 위
+END_SEC = 3.0      # 마무리 자막이 떠 있는 시간(영상 끝부분 = 결과 화면)
+REPLAY_FOOTAGE_DRAW = 534   # assets/footage/replay.mp4에 찍힌 회차
 
 # 훅 글자를 읽는 속도(자/초). 6.5는 큰 글씨를 편히 읽는 속도다 — 2026-11-01까지 훅이 글자
 # 수와 무관하게 3초 고정이라, band는 10.7자/초 replay는 18자/초를 요구했고 유저가 "글자를
@@ -91,31 +96,73 @@ def _center(d, y, text, f, fill):
 
 
 def hook_png(hook, sub, path):
-    """위쪽에 훅, 아래는 투명. 영상이 비치도록 글자 뒤에만 어두운 막을 깐다."""
+    """위쪽에 훅, 나머지는 투명. 막 없이 테두리 글자로 얹어 뒤의 앱 화면이 보이게 한다."""
     im = Image.new("RGBA", (RW, RH), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
 
     size = 92
     f = C.font(size, "black")
-    lines = _wrap(d, hook, f, RW - 120)
+    def wrap_all(fnt):   # 줄바꿈(\n)은 그 자리에서 끊는다 — "그 / 회차에"처럼 말 중간에서 끊기지 않게
+        return [ln for part in hook.split("\n") for ln in _wrap(d, part, fnt, RW - 120)]
+    lines = wrap_all(f)
     while len(lines) > 4 and size > 56:
         size -= 8
         f = C.font(size, "black")
-        lines = _wrap(d, hook, f, RW - 120)
+        lines = wrap_all(f)
 
-    block = len(lines) * int(size * 1.2) + (90 if sub else 0)
-    top = 210
-    # 글자 뒤 어두운 막. 150이었을 땐 뒤의 앱 글자가 비쳐서 훅과 겹쳐 읽혔다
-    # (band은 하필 '당첨 0건 · 0원' 줄이 그 자리였다). 215면 글자만 보인다.
-    d.rectangle([0, top - 70, RW, top + block + 70], fill=(0, 0, 0, 215))
-
+    # 2026-11-05: 화면 폭 전체를 검은 막(215)으로 덮었더니 뒤의 앱 화면이 통째로 가려졌다(유저 지적).
+    # 막을 없애고 릴스 자막처럼 글자 테두리(stroke)로 읽히게 한다. 글자 바로 뒤에만 옅은 그림자를 깔아
+    # 밝은 앱 화면 위에서도 흰 글자가 묻히지 않게 한다 — 덮는 면적은 글자 획 근처뿐이다.
+    # 위 ~250px는 인스타 UI(상단 바)가 덮고, 피드에서는 4:5로 잘려 위아래 285px가 사라진다.
+    # 그 둘을 다 피하는 자리에서 시작한다(social-media-skills 릴스 안전영역 기준).
+    top = TOP
+    lh = int(size * 1.25)
+    stroke = max(6, size // 11)
+    shadow = Image.new("RGBA", (RW, RH), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow)
     y = top
     for ln in lines:
-        _center(d, y, ln, f, (255, 255, 255, 255))
-        y += int(size * 1.2)
+        w = sd.textbbox((0, 0), ln, font=f)[2]
+        sd.text(((RW - w) // 2 + 4, y + 6), ln, font=f, fill=(0, 0, 0, 150),
+                stroke_width=stroke + 4, stroke_fill=(0, 0, 0, 150))
+        y += lh
+    im.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(10)))
+    d = ImageDraw.Draw(im)
+    y = top
+    for ln in lines:
+        w = d.textbbox((0, 0), ln, font=f)[2]
+        d.text(((RW - w) // 2, y), ln, font=f, fill=(255, 255, 255, 255),
+               stroke_width=stroke, stroke_fill=(20, 16, 14, 255))
+        y += lh
     if sub:
-        _center(d, y + 18, sub, C.font(46, "bold"), C.CREAM + (255,))
+        sf = C.font(48, "bold")
+        w = d.textbbox((0, 0), sub, font=sf)[2]
+        d.text(((RW - w) // 2, y + 18), sub, font=sf, fill=C.CREAM + (255,),
+               stroke_width=5, stroke_fill=(20, 16, 14, 255))
 
+    im.save(path)
+    return path
+
+
+def caption_png(text, path, y=END_Y):
+    """결과 화면 위에 얹는 마무리 자막 한 줄(또는 두 줄). 훅과 같은 테두리 글자."""
+    im = Image.new("RGBA", (RW, RH), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    f = C.font(76, "black")
+    lines = [ln for part in text.split("\n") for ln in _wrap(d, part, f, RW - 120)]
+    lh = 96
+    shadow = Image.new("RGBA", (RW, RH), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shadow)
+    for i, ln in enumerate(lines):
+        w = sd.textbbox((0, 0), ln, font=f)[2]
+        sd.text(((RW - w) // 2 + 4, y + i * lh + 6), ln, font=f, fill=(0, 0, 0, 150),
+                stroke_width=12, stroke_fill=(0, 0, 0, 150))
+    im.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(10)))
+    d = ImageDraw.Draw(im)
+    for i, ln in enumerate(lines):
+        w = d.textbbox((0, 0), ln, font=f)[2]
+        d.text(((RW - w) // 2, y + i * lh), ln, font=f, fill=(255, 214, 64, 255),
+               stroke_width=7, stroke_fill=(20, 16, 14, 255))
     im.save(path)
     return path
 
@@ -129,7 +176,7 @@ def outro_png(path):
     return path
 
 
-def build(footage, hook, sub, out_path, body_sec=None, start=0.0, speed=1.0):
+def build(footage, hook, sub, out_path, body_sec=None, start=0.0, speed=1.0, end_text=None):
     """바탕 영상 + 훅 + 마무리 → 릴스 한 편."""
     hs = hook_sec(hook, sub)
     if body_sec is None:
@@ -143,6 +190,7 @@ def build(footage, hook, sub, out_path, body_sec=None, start=0.0, speed=1.0):
     with tempfile.TemporaryDirectory() as td:
         td = pathlib.Path(td)
         hk = hook_png(hook, sub, td / "hook.png")
+        en = caption_png(end_text, td / "end.png") if end_text else None
         outro = outro_png(td / "outro.jpg")
         body = td / "body.mp4"
         tail = td / "tail.mp4"
@@ -153,12 +201,17 @@ def build(footage, hook, sub, out_path, body_sec=None, start=0.0, speed=1.0):
             f"setpts=PTS/{speed},scale={RW}:{RH}:force_original_aspect_ratio=increase,"
             f"crop={RW}:{RH},fps={FPS},format=yuv420p[v];"
             f"[1:v]format=rgba,fade=t=out:st={hs - FADE}:d={FADE}:alpha=1[hk];"
-            f"[v][hk]overlay=0:0:format=auto,trim=0:{body_sec},setpts=PTS-STARTPTS[outv]"
+            f"[v][hk]overlay=0:0:format=auto[vh];"
+            + (f"[2:v]format=rgba[en];[vh][en]overlay=0:0:format=auto:enable='gte(t,{max(hs, body_sec - END_SEC)})'[ve];"
+               if en else "[vh]null[ve];")
+            + f"[ve]trim=0:{body_sec},setpts=PTS-STARTPTS[outv]"
         )
+        extra = ["-loop", "1", "-framerate", str(FPS), "-t", str(body_sec), "-i", str(en)] if en else []
         run(["ffmpeg", "-y", "-loglevel", "error",
              "-ss", str(start), "-t", str(body_sec * speed), "-i", str(footage),
              # 훅은 정지 이미지라 한 프레임뿐이면 페이드가 걸리지 않고 끝까지 남는다 → 반복 입력으로 시간축을 준다
              "-loop", "1", "-framerate", str(FPS), "-t", str(body_sec), "-i", str(hk),
+             *extra,
              "-filter_complex", vf, "-map", "[outv]",
              "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-an", str(body)])
 
@@ -186,6 +239,15 @@ def reel_name(kind, day):
 def build_for(kind, day, footage=None, draws=None):
     """그날 릴스 한 편. 훅은 카드·캡션과 같은 문장을 쓴다."""
     hook, sub = C.slide_hook(kind, day, draws)
+    end_text = None
+    if kind == "replay":
+        # 바탕 영상은 534회 1등 번호를 누르는 장면으로 고정이다(2026-10-28 녹화). 그날 회차를 말하면
+        # 화면 번호와 자막이 어긋난다. 앱 화면이 1~1247회 전체를 돌리므로 집계도 1회부터 맞춘다.
+        draws = draws if draws is not None else rp.fetch_draws()
+        w = rp.draw_replay(REPLAY_FOOTAGE_DRAW, draws, start_round=1)
+        hook = f"{w['draw_no']}회 1등 번호\n그 회차에 {w['own_prize'] / 100000000:.1f}억원"
+        sub = f"이 회차를 빼고 나머지 {w['res']['draws']}회에 돌려보면?"
+        end_text = f"이 회차를 빼면\n{rp.won(w['res']['gross'])}"
     if kind == "genius":
         # 바탕 영상이 다섯 천재 탭을 차례로 훑는다. 그날 한 명만 말하면 화면(아르키메데스부터 시작)과 어긋난다.
         draw_no = sub.split("회")[0]
@@ -200,7 +262,7 @@ def build_for(kind, day, footage=None, draws=None):
     speed = min(speed, avail / need)
     body = min(MAX_BODY, avail / speed)
     return build(footage, hook, sub, OUT / f"{reel_name(kind, day)}.mp4",
-                 body_sec=body, start=start, speed=speed)
+                 body_sec=body, start=start, speed=speed, end_text=end_text)
 
 
 def _duration(path):

@@ -185,6 +185,14 @@ def pick_winner(date_key, draws, start_round=START_ROUND):
     return order[days % len(order)]
 
 
+def draw_replay(draw_no, draws, start_round=START_ROUND):
+    """특정 회차 1등 번호와, 그 회차를 뺀 나머지 성적. 릴스처럼 바탕 영상이 한 회차로 고정된 경우에 쓴다."""
+    d = next(x for x in draws if x["no"] == draw_no)
+    others = [x for x in draws if x["no"] != draw_no]
+    return {"draw_no": d["no"], "numbers": sorted(d["numbers"]), "own_prize": prize_of(1, d),
+            "res": replay(d["numbers"], others, start_round)}
+
+
 def winner_replay(date_key, draws, start_round=START_ROUND):
     """그날의 1등 번호와, **자기 회차를 뺀** 나머지 회차 성적.
 

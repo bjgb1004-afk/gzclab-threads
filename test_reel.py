@@ -26,8 +26,10 @@ def test_hook_png_is_transparent_9x16():
         assert im.mode == "RGBA"
         # 맨 아래쪽은 완전 투명이어야 한다
         assert im.getpixel((reel.RW // 2, reel.RH - 40))[3] == 0
-        # 훅이 놓인 자리는 막이 깔려 불투명하다
-        assert im.getpixel((reel.RW // 2, 300))[3] > 0
+        # 화면을 통째로 덮는 막은 없다: 훅 줄 높이에서도 양쪽 가장자리는 비쳐야 한다(2026-11-05)
+        assert im.getpixel((10, 300))[3] == 0 and im.getpixel((reel.RW - 10, 300))[3] == 0
+        # 글자는 실제로 그려졌다
+        assert max(im.getpixel((x, y))[3] for x in range(0, reel.RW, 8) for y in range(220, 400, 8)) == 255
 
 
 def test_hook_png_shrinks_long_text():
