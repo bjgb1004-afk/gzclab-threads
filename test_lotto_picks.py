@@ -109,7 +109,7 @@ def test_full_week():
         assert "댓글 남기면" in t  # 번호 없이 분석 과정만, 번호는 댓글 답글로
     # 번호 글마다 앱 링크 답글 (월~토 6일)
     link_replies = [t for t, reply in calls["posts"] if reply and lp.LINK in t]
-    assert len(link_replies) == 6, len(link_replies)
+    assert len(link_replies) == 0, len(link_replies)   # 번호 글엔 링크 답글을 달지 않는다(2026-11-06)
 
     # 같은 날 백업 cron이 또 돌아도 중복 발행하지 않는다.
     before = len(calls["posts"])

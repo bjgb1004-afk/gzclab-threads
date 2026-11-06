@@ -173,7 +173,7 @@ def publish_one(kind, date_key, queue, draws, dry=False):
     QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     try:
-        publish.publish(f"{LINK_LEAD}\n{post['link']}", reply_to=post_id)
+        publish.link_reply(post["id"], f"{LINK_LEAD}\n{post['link']}", post_id)
     except Exception as e:
         publish.telegram(f"{TITLE[kind]} 글은 올랐는데 링크 답글 실패\n{post['id']}\n{e}")
     publish.telegram(

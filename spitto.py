@@ -301,7 +301,7 @@ def post(text, entry_id, kind, label, dry, now):
     record_in_queue(entry_id, text, post_id, kind, now)
     # 본문이 성공했으면 링크 답글이 죽어도 글은 남는다. 번호 글과 같은 순서다.
     try:
-        publish.publish(f"{LINK_LEAD}\n{LINK}", reply_to=post_id)
+        publish.link_reply(entry_id, f"{LINK_LEAD}\n{LINK}", post_id)
     except Exception as e:
         print(e, file=sys.stderr)
         publish.telegram(f"⚠️ 스피또 글은 올랐는데 링크 답글 실패\n{e}")

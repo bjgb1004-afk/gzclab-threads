@@ -57,6 +57,24 @@ def publish(text, reply_to=None):
     raise last
 
 
+# 링크 답글은 하루 2개만(2026-11-06 유저 결정). 글마다 같은 주소 링크를 다니 프로필 답글 탭에
+# 링크가 5~6개 줄줄이 붙어 광고 계정처럼 보였다. 링크를 누를 이유가 분명한 글만 남긴다:
+#   winner-  1등 번호 되짚어보기 → 앱 '놓친 당첨금'으로 바로 이어진다
+#   hangul-  한글폭탄 → 플레이스토어 설치 (hangul_promo가 직접 단다)
+LINK_REPLY_PREFIXES = ("winner-", "hangul-")
+
+
+def link_ok(post_key):
+    return post_key.startswith(LINK_REPLY_PREFIXES)
+
+
+def link_reply(post_key, text, reply_to):
+    """허용된 글에만 링크 답글을 단다. 단 답글 id, 안 달았으면 None."""
+    if not link_ok(post_key):
+        return None
+    return publish(text, reply_to=reply_to)
+
+
 def telegram(text):
     if not (os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")):
         return
@@ -108,7 +126,7 @@ def main():
     post["published_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    if post.get("link"):
+    if post.get("link") and link_ok(post["id"]):
         lead = post.get("reply") or REPLY_LINES[published_count % len(REPLY_LINES)]
         try:
             publish(f"{lead}\n{post['link']}", reply_to=post_id)

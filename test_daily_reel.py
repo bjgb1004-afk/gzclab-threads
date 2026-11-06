@@ -89,5 +89,5 @@ def test_caps():
 def test_daily_caption_fits_and_asks_comment():
     import instagram_publish as ip
     cap = ip.daily_caption("genius", FRI)
-    assert len(cap) <= ip.CAPTION_LIMIT and "댓글에 닉네임" in cap and "팔로우" in cap
+    assert len(cap) <= ip.CAPTION_LIMIT and "댓글에 '번호'" in cap and "팔로우" in cap
     assert cap.count("#") <= 5

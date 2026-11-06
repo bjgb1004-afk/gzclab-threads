@@ -27,7 +27,7 @@ def run_once(queue_items):
 code, calls, queue = run_once(
     [
         {"id": "a", "status": "published", "text": "old"},
-        {"id": "b", "status": "pending", "text": "본문", "link": "https://x"},
+        {"id": "winner-b", "status": "pending", "text": "본문", "link": "https://x"},
         {"id": "c", "status": "pending", "text": "다음"},
     ]
 )
@@ -38,8 +38,12 @@ assert queue[1]["status"] == "published" and queue[1]["post_id"] == "id-1", queu
 assert queue[2]["status"] == "pending", "only one post per run"
 
 # per-post reply overrides the rotation
-code, calls, _ = run_once([{"id": "a", "status": "pending", "text": "본문", "link": "https://x", "reply": "직접 쓴 멘트"}])
+code, calls, _ = run_once([{"id": "winner-a", "status": "pending", "text": "본문", "link": "https://x", "reply": "직접 쓴 멘트"}])
 assert calls[1] == ("직접 쓴 멘트\nhttps://x", "id-1"), calls
+
+# 링크 답글 허용 목록에 없는 글은 link가 있어도 답글을 달지 않는다 (하루 링크 2개, 2026-11-06)
+code, calls, _ = run_once([{"id": "top5-서울-구로구", "status": "pending", "text": "본문", "link": "https://x"}])
+assert [c for c in calls if c[0] != "telegram"] == [("본문", None)], calls
 
 # no link -> no reply
 code, calls, _ = run_once([{"id": "a", "status": "pending", "text": "링크없음"}])

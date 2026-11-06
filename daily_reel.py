@@ -101,8 +101,8 @@ def frame(lines, nums, opened, scale_last=1.0, label=None, cta=False):
         center(d, BALL_Y + BALL_R + 60, label, C.font(54, "bold"), C.WHITE)
     if cta:
         d.rounded_rectangle([80, 1170, RW - 80, 1530], radius=40, fill=(255, 255, 255))
-        center(d, 1215, "댓글에 닉네임 남기면", C.font(66, "black"), C.INK)
-        center(d, 1305, "네 1게임 답글로 줌", C.font(66, "black"), C.BG_BOTTOM)
+        center(d, 1215, "댓글에 '번호'라고 남기면", C.font(66, "black"), C.INK)
+        center(d, 1305, "이번 주 1게임 답글로 줌", C.font(66, "black"), C.BG_BOTTOM)
         center(d, 1420, "팔로우하면 매일 1게임 올라옴", C.font(44, "bold"), C.MUTED)
     return im
 

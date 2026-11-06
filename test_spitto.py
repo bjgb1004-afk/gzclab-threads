@@ -84,8 +84,8 @@ def test_stock_post_shape():
     # 정직 문구가 같은 글에 있어야 한다
     assert "기대값은 마이너스" in text
     assert len(text) <= sp.LIMIT
-    # 링크 답글이 따라붙는다
-    assert any(reply == "id1" and sp.LINK in t for t, reply in calls["posts"])
+    # 링크 답글은 달지 않는다 — 하루 링크 2개(winner·hangul)만 남겼다(2026-11-06)
+    assert not any(reply and sp.LINK in t for t, reply in calls["posts"])
     # 판매종료 회차는 본문에 안 들어간다
     assert "62회" not in text
 

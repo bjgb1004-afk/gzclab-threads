@@ -532,7 +532,7 @@ def run_daily(now, dry):
     # 12,987)에 클릭할 링크가 하나도 없었다. 링크 답글이 도달을 죽이지 않는 건
     # 9/28 김포 글(22,158, 링크 답글 있음)로 확인됐다. 매일 단다.
     try:
-        publish.publish(f"{LINK_LEAD}\n{LINK}", reply_to=post_id)
+        publish.link_reply(f"picks-{draw_no}-{day}", f"{LINK_LEAD}\n{LINK}", post_id)
     except Exception as e:
         print(e, file=sys.stderr)
         publish.telegram(f"⚠️ 번호 글은 올랐는데 링크 답글 실패\n{e}")
@@ -606,7 +606,7 @@ def run_result(now, dry, draw_no=None):
         # 번호는 특정 분석법 것이 아니라서 분석법 성적 집계에 섞이면 안 된다.
         record_in_queue(f"picks-{draw_no}-result", text, post_id, draw_no, reply_mode="combo")
         try:
-            publish.publish(f"{LINK_LEAD}\n{LINK}", reply_to=post_id)
+            publish.link_reply(f"picks-{draw_no}-result", f"{LINK_LEAD}\n{LINK}", post_id)
         except Exception as e:
             print(e, file=sys.stderr)
         win_label = " · ".join(recipes.KOREAN_NAME[r] for r in win_ids) or "없음(댓글 번호 없음)"
