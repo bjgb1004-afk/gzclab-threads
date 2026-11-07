@@ -114,6 +114,24 @@ def instagram(now):
         print(f"인스타 인사이트 수집 실패: {e}", file=sys.stderr)
 
 
+def grade_preview_once(now, draw_no=1249):
+    out = pathlib.Path(__file__).with_name("reports") / f"grade-{draw_no}-preview.json"
+    local = now.astimezone(KST)
+    if out.exists() or not (datetime.datetime(2026, 11, 7, 21, 30, tzinfo=KST) <= local
+                            < datetime.datetime(2026, 11, 8, 10, 0, tzinfo=KST)):
+        return
+    r = lotto_picks.grade_preview(draw_no)
+    if not r:
+        return
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(json.dumps(r, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    lines = [f"🔎 {draw_no}회 댓글 번호 미리 채점(글은 안 올림)"]
+    for k, label in (("stats", "흐름 정리"), ("mid", "중간 점검")):
+        if k in r:
+            lines.append(f"{label}: {r[k]['games']}게임 · 당첨 {r[k]['ranks'] or '없음'}")
+    telegram("\n".join(lines))
+
+
 def step(name, fn):
     try:
         fn()
@@ -155,6 +173,8 @@ def main():
         step("spitto", lambda: spitto.run_auto(now, dry=False))
     step("reply", auto_reply.main)
     step("insights", collect_insights.main)
+    # 1회용(2026-11-07 유저 질문): 1249회 흐름 정리·중간 점검 댓글 번호 미리 채점. 글은 올리지 않는다.
+    step("grade_preview", lambda: grade_preview_once(now))
     # 조회수 하락 대응 실험(11/4~11/10)의 점검 리포트. 2026-11-12 09:07 KST 이후 한 번만 나간다.
     step("weekly_check", lambda: weekly_check.run(now))
     return 0

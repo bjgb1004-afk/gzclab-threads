@@ -914,6 +914,34 @@ def run_grade(now, dry, draw_no):
     return 0
 
 
+def grade_preview(draw_no, posts=("stats", "mid")):
+    """채점 글을 올리지 않고 숫자만 본다(유저 질문용). {글: {games, ranks, winners}}.
+
+    흐름 정리 글(stats)과 수요일 중간 점검(mid) 댓글에 내가 단 번호를 읽어 당첨번호와 맞춘다.
+    """
+    win = fetch_winning(draw_no)
+    if not win:
+        return None
+    numbers, bonus = win
+    queue = load(QUEUE, [])
+    out = {"draw": draw_no, "numbers": numbers, "bonus": bonus}
+    for kind in posts:
+        src = next((p for p in queue if p["id"] == f"picks-{draw_no}-{kind}" and p.get("post_id")), None)
+        if not src:
+            continue
+        games = comment_games(conversation_all(src["post_id"], publish.TOKEN))
+        w = grade_winners(games, numbers, bonus)
+        out[kind] = {
+            "games": len(games),
+            "ranks": {str(r): len(v) for r, v in sorted(w.items())},
+            "match_dist": {str(k): v for k, v in sorted(collections.Counter(
+                len(set(n) & set(numbers)) for _, n in games).items())},
+            "winners": [{"rank": r, "name": mask_name(n), "numbers": nums} for r, v in sorted(w.items())
+                        for n, nums, _ in v],
+        }
+    return out
+
+
 STATS_HOUR = 18  # 일요일 18시 이후 흐름 정리 글
 STATS_GIVE_UP_HOUR = 20  # 이때도 지난 회차 번호가 미러에 없으면 알린다
 
