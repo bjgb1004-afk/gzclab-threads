@@ -1174,35 +1174,40 @@
         "genius": "archimedes",
         "games": [],
         "post_id": "18107108575983936",
-        "posted_at": "2026-11-01T22:08:07+00:00"
+        "posted_at": "2026-11-01T22:08:07+00:00",
+        "result_reply_id": "18650029477061168"
       },
       "tue": {
         "kind": "method",
         "genius": "fibonacci",
         "games": [],
         "post_id": "18149208868576374",
-        "posted_at": "2026-11-02T22:08:49+00:00"
+        "posted_at": "2026-11-02T22:08:49+00:00",
+        "result_reply_id": "18033686927681093"
       },
       "wed": {
         "kind": "method",
         "genius": "pascal",
         "games": [],
         "post_id": "18109286384195683",
-        "posted_at": "2026-11-03T22:11:32+00:00"
+        "posted_at": "2026-11-03T22:11:32+00:00",
+        "result_reply_id": "17913388197489738"
       },
       "thu": {
         "kind": "method",
         "genius": "euler",
         "games": [],
         "post_id": "18134337422495378",
-        "posted_at": "2026-11-04T22:08:31+00:00"
+        "posted_at": "2026-11-04T22:08:31+00:00",
+        "result_reply_id": "18033302615687067"
       },
       "fri": {
         "kind": "method",
         "genius": "gaussian",
         "games": [],
         "post_id": "18147757414571208",
-        "posted_at": "2026-11-05T22:07:17+00:00"
+        "posted_at": "2026-11-05T22:07:17+00:00",
+        "result_reply_id": "17984866242122829"
       },
       "sat": {
         "kind": "store",
@@ -1256,12 +1261,37 @@
           ]
         ],
         "post_id": "18122358485470142",
-        "posted_at": "2026-11-06T22:08:40+00:00"
+        "posted_at": "2026-11-06T22:08:40+00:00",
+        "score": {
+          "best": 2,
+          "best_game": "C",
+          "ranks": [],
+          "total": 2
+        },
+        "result_reply_id": "18124762807936207"
       }
     },
     "stats": {
       "post_id": "17913673197559774",
       "posted_at": "2026-11-01T09:03:57+00:00"
+    },
+    "result": {
+      "numbers": [
+        2,
+        11,
+        16,
+        25,
+        34,
+        35
+      ],
+      "bonus": 14,
+      "post_id": "18093273293229667",
+      "posted_at": "2026-11-07T12:00:50+00:00"
+    },
+    "recipe_result": {
+      "winners": [
+        "archimedes"
+      ]
     }
   }
 }
