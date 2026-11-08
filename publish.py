@@ -96,7 +96,9 @@ def current_slot():
 
 def main():
     queue = json.loads(QUEUE.read_text(encoding="utf-8"))
-    pending = [p for p in queue if p.get("status") == "pending"]
+    # 잡담 글(auto/talk)은 더 내보내지 않는다(2026-11-08 유저 결정). 큐에 남은 재고도 고르지 않는다.
+    pending = [p for p in queue if p.get("status") == "pending"
+               and not p["id"].startswith(("auto-", "talk-"))]
     if not pending:
         telegram("⚠️ 스레드 큐가 비었습니다. 다음 글이 발행되지 않습니다.")
         return 1

@@ -52,13 +52,10 @@ def test_due_only_wednesday_evening():
     assert not mw.due(at(3, 19, 0))           # 화
 
 
-def test_wednesday_night_slot_is_skipped_once_midweek_posted():
-    """하루 글 수 유지: 수요일 밤 슬롯 글을 이 글이 대신한다."""
-    now = at(4, 21, 7)
+def test_wednesday_has_no_night_slot_post():
+    """잡담 글을 끈 뒤(2026-11-08) 밤 슬롯이 없다. 아침 글이 나갔으면 21:07엔 아무것도 안 나간다."""
+    am = {"id": "top5-x", "status": "published",
+          "published_at": at(4, 9, 9).astimezone(datetime.timezone.utc).isoformat()}
     mid = {"id": "picks-1249-mid", "status": "published",
            "published_at": at(4, 18, 8).astimezone(datetime.timezone.utc).isoformat()}
-    assert tick.due_slot_start([mid], now) is None
-    assert tick.due_slot_start([], now) is not None            # 안 나갔으면 평소대로
-    other = {"id": "picks-1249-mid", "status": "published",
-             "published_at": at(28, 18, 8, mon=10).astimezone(datetime.timezone.utc).isoformat()}
-    assert tick.due_slot_start([other], now) is not None        # 지난주 글은 해당 없음
+    assert tick.due_slot_start([am, mid], at(4, 21, 7)) is None

@@ -43,10 +43,12 @@ def test_one_topic_tag_per_post():
             assert t.count("#") == 1 and t.endswith("#한글게임")
 
 
-def test_wednesday_pm_slot_skipped_so_count_stays():
-    """수요일은 중간 점검(밤 슬롯 대체)과 한글폭탄 글이 겹친다. 점심 슬롯을 비워 하루 글 수를 맞춘다."""
-    assert tick.due_slot_start([], at(11, 11, 12, 7)) is None     # 수요일, 한글폭탄 예정일
-    assert tick.due_slot_start([], at(11, 12, 12, 7)) is not None # 목요일은 평소대로
+def test_no_pm_or_night_slot_after_chatter_stopped():
+    """잡담 글을 끈 뒤(2026-11-08) 슬롯은 아침 하나. 아침 글이 나갔으면 점심·밤엔 아무것도 안 나간다."""
+    pub = at(11, 11, 9, 9).astimezone(datetime.timezone.utc).isoformat()
+    q = [{"id": "top5-x", "status": "published", "published_at": pub}]
+    assert tick.due_slot_start(q, at(11, 11, 12, 7)) is None
+    assert tick.due_slot_start(q, at(11, 11, 21, 7)) is None
 
 
 def test_feedback_post_falls_back_instead_of_inventing():

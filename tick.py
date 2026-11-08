@@ -33,7 +33,9 @@ QUEUE = pathlib.Path(__file__).with_name("queue.json")
 # 아침 슬롯은 9:07이다 — 7:07은 번호 글(lotto_picks.PICK_TIME)과 같은 틱에 걸려서 같은
 # 계정에서 두 글이 몇 분 차로 나갔다(2026-10-14 번호 글을 7시로 옮기며 비킴). 9시도
 # publish.current_slot()의 am(10시 전)이라 아침 지역 글은 그대로 아침에 나간다.
-SLOTS = ((9, 7), (12, 7), (21, 7))
+# 2026-11-08 유저 결정: 잡담 글(auto 점심·밤)은 내보내지 않는다. 남는 슬롯은 아침 지역 글 하나.
+# (반응 하위권: auto 조회 중간값 396 · 좋아요 2.4 · 댓글 1.1 — 지역 TOP5는 797)
+SLOTS = ((9, 7),)
 
 
 def due_slot_start(queue, now):
@@ -49,13 +51,6 @@ def due_slot_start(queue, now):
         return None
     h, m = passed[-1]
     start = local.replace(hour=h, minute=m, second=0, microsecond=0)
-    # 수요일 저녁 "번호 중간 점검"이 나갔으면 밤 슬롯은 비운다 — 하루 글 수를 늘리지 않는다.
-    # 수요일은 중간 점검(밤 슬롯 대체)에 한글폭탄 글(19:07)까지 더해지므로 점심 슬롯을 비운다.
-    if (h, m) == SLOTS[1] and local.weekday() == 2 and hangul_promo.scheduled_today(now):
-        return None
-    # 매일 19:07 한글폭탄 글도 같은 방식으로 밤 슬롯을 대신한다.
-    if (h, m) == SLOTS[-1] and (midweek.posted_today(queue, now) or hangul_promo.posted_today(queue, now)):
-        return None
     for p in queue:
         # picks(07:07)·band(토 10:07)·spitto(16:07) 글은 제 시각에 따로 나간다. 그게 슬롯
         # 발행을 대신하면 그날 슬롯 글 하나가 조용히 사라진다. miss-는 폐지했지만 큐에 남은
@@ -146,7 +141,8 @@ def main():
 
     # 큐가 비었을 때 publish를 부르면 5분마다 "큐 비었음" 알림이 온다. 큐가 3개
     # 남았을 때 publish가 미리 경고하므로, 여기선 조용히 건너뛴다.
-    if any(p.get("status") == "pending" for p in queue) and due_slot_start(queue, now):
+    if any(p.get("status") == "pending" and not p["id"].startswith(("auto-", "talk-")) for p in queue) \
+            and due_slot_start(queue, now):
         step("publish", publish.main)
     if weekly_draw_due(queue, now):
         step("draw", lambda: gen_draw_post.main([]))
@@ -160,7 +156,7 @@ def main():
     step("band", lambda: band_picks.run_auto(now, dry=False))
     # 큐가 마르면 지난 회차 데이터로 pm/night 글을 찍어 채운다. 손으로 쓴 글이 남아 있으면
     # 아무것도 하지 않는다.
-    step("topup", lambda: gen_posts.top_up(now))
+    # 잡담 글을 끈 뒤로는 큐를 채우지 않는다(2026-11-08). gen_posts.top_up이 pm/night 글을 만들던 자리.
     # 아침 지역 글은 손으로 쓴 것이 전부라 다 나가면 맨 앞부터 다시 돌린다.
     step("recycle", gen_posts.recycle)
     # 인스타. 토큰이 없으면 아무 말 없이 건너뛴다 — 스레드만 돌려도 되게.

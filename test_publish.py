@@ -56,7 +56,7 @@ code, calls, _ = run_once(
     [
         {"id": "top5-a", "status": "published", "text": "어제", "published_at": "2026-09-23T22:07:00+00:00"},
         {"id": "top5-b", "status": "pending", "slot": "am", "text": "또 TOP5"},
-        {"id": "talk-1", "status": "pending", "slot": "pm", "text": "잡담"},
+        {"id": "dist-1", "status": "pending", "slot": "pm", "text": "잡담"},
     ]
 )
 assert calls[0][0] == "잡담", calls  # 슬롯이 비어도 TOP5 연속은 피한다
@@ -98,3 +98,15 @@ except RuntimeError as e:
     assert "rate limited" in str(e), e
 
 print("ok")
+
+
+# 잡담 글(auto/talk)은 큐에 남아 있어도 고르지 않는다 (2026-11-08)
+publish.current_slot = lambda: "pm"
+code, calls, _ = run_once(
+    [
+        {"id": "auto-2026-11-08-pm", "status": "pending", "slot": "pm", "text": "잡담1"},
+        {"id": "talk-pm-31", "status": "pending", "slot": "pm", "text": "잡담2"},
+        {"id": "top5-x", "status": "pending", "slot": "am", "text": "지역"},
+    ]
+)
+assert calls[0][0] == "지역", calls
