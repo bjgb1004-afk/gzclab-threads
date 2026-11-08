@@ -3824,10 +3824,12 @@
   },
   {
     "id": "auto-2026-11-07-pm",
-    "status": "pending",
+    "status": "published",
     "slot": "pm",
     "text": "26번, 1248회 중 166번 나왔음\n\n지난 회차에서 뽑아낸 것만 올림. 이어서 볼 사람은 팔로우.\n\n마지막은 1244회 (평균은 166번)\n27번과 제일 자주 붙어 나왔음 — 26회 같이 나옴\n\n같이 나온 횟수가 많다고 묶여 다니는 건 아님. 회차가 많아서 생기는 숫자임.\n\n번호 하나씩 돌아가면서 올리는 중임.",
-    "link": "https://gzclab.com/lottomap/?c=auto"
+    "link": "https://gzclab.com/lottomap/?c=auto",
+    "post_id": "18060661901562825",
+    "published_at": "2026-11-08T03:07:17+00:00"
   },
   {
     "reply_mode": "combo",
