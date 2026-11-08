@@ -4012,7 +4012,14 @@
     "reply_mode": "replay",
     "post_id": "17967188385232858",
     "date": "2026-11-07",
-    "published_at": "2026-11-07T05:11:12+00:00"
+    "published_at": "2026-11-07T05:11:12+00:00",
+    "insights": {
+      "views": 627,
+      "likes": 1,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "hangul-d02-length",
