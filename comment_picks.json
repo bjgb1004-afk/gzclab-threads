@@ -628,5 +628,20 @@
     ],
     "reply_id": "18120515839995674",
     "created_at": "2026-11-09T10:26:01+00:00"
+  },
+  {
+    "draw": 1250,
+    "recipe": "archimedes",
+    "username": "today_recommend",
+    "numbers": [
+      3,
+      12,
+      15,
+      17,
+      34,
+      37
+    ],
+    "reply_id": "17915713758493141",
+    "created_at": "2026-11-09T10:51:56+00:00"
   }
 ]
