@@ -1,10 +1,11 @@
 {
-  "_collected": "2026-11-11",
+  "_collected": "2026-11-12",
   "hangul-launch": [],
   "hangul-core": [],
   "hangul-d01-charge": [],
   "hangul-d02-length": [],
   "hangul-d03-multiplier": [],
   "hangul-d04-streak": [],
-  "hangul-d05-sweep": []
+  "hangul-d05-sweep": [],
+  "hangul-d06-cross": []
 }
