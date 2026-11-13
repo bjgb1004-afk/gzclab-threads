@@ -109,15 +109,16 @@ def compose_combo(username, draw_no, genius=None, history=None):
         name = recipes.KOREAN_NAME[genius]
         text = (
             f"{username}아 {name} 분석으로 {draw_no}회 네 번호 뽑아왔어!\n{lotto_gen.fmt(numbers)}\n\n"
-            "네 닉네임으로 이번 주 후보 풀에서 하나 뽑은 거야. 이번 주엔 다시 물어봐도 같은 번호. "
+            f"네 닉네임으로 이번 주 {name} 후보 풀에서 뽑은 거라 이 분석은 다시 물어봐도 같은 번호야. "
+            "다른 요일 분석 글에 댓글 달면 그 분석 번호가 또 나와. "
             "토요일 밤에 분석법별 성적 올리니까 거기서 확인해"
         )
         return text, numbers
     numbers = lotto_gen.store_game(f"user:{username}", draw_no)
     text = (
         f"{username}아 {draw_no}회 네 조합 뽑아왔어!\n{lotto_gen.fmt(numbers)}\n\n"
-        "닉네임으로 뽑은 거라 이번 주엔 다시 물어봐도 같은 번호야. "
-        "다음 주 일요일에도 올리니까 그때 또 와"
+        "닉네임으로 뽑은 거라 흐름 정리·중간 점검 글에선 이번 주 내내 같은 번호야. "
+        "평일 아침 수학자 분석 글에 댓글 달면 분석별 번호가 따로 나와"
     )
     return text, numbers
 
