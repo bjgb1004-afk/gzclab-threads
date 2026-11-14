@@ -1313,35 +1313,40 @@
         "genius": "archimedes",
         "games": [],
         "post_id": "17991990867120099",
-        "posted_at": "2026-11-08T22:09:20+00:00"
+        "posted_at": "2026-11-08T22:09:20+00:00",
+        "result_reply_id": "17999313141069672"
       },
       "tue": {
         "kind": "method",
         "genius": "fibonacci",
         "games": [],
         "post_id": "18134391082760969",
-        "posted_at": "2026-11-09T22:09:03+00:00"
+        "posted_at": "2026-11-09T22:09:03+00:00",
+        "result_reply_id": "17978564919144047"
       },
       "wed": {
         "kind": "method",
         "genius": "pascal",
         "games": [],
         "post_id": "18102454466374412",
-        "posted_at": "2026-11-10T22:11:02+00:00"
+        "posted_at": "2026-11-10T22:11:02+00:00",
+        "result_reply_id": "18105401171372542"
       },
       "thu": {
         "kind": "method",
         "genius": "euler",
         "games": [],
         "post_id": "17919230139467097",
-        "posted_at": "2026-11-11T22:08:07+00:00"
+        "posted_at": "2026-11-11T22:08:07+00:00",
+        "result_reply_id": "18119610266122222"
       },
       "fri": {
         "kind": "method",
         "genius": "gaussian",
         "games": [],
         "post_id": "17956848504320069",
-        "posted_at": "2026-11-12T22:09:27+00:00"
+        "posted_at": "2026-11-12T22:09:27+00:00",
+        "result_reply_id": "18059714951598457"
       },
       "sat": {
         "kind": "store",
@@ -1395,12 +1400,37 @@
           ]
         ],
         "post_id": "18119140934601486",
-        "posted_at": "2026-11-13T22:11:57+00:00"
+        "posted_at": "2026-11-13T22:11:57+00:00",
+        "score": {
+          "best": 1,
+          "best_game": "E",
+          "ranks": [],
+          "total": 1
+        },
+        "result_reply_id": "17920125834259790"
       }
     },
     "stats": {
       "post_id": "18454048771135057",
       "posted_at": "2026-11-08T09:02:54+00:00"
+    },
+    "result": {
+      "numbers": [
+        1,
+        5,
+        18,
+        23,
+        27,
+        28
+      ],
+      "bonus": 8,
+      "post_id": "18035104784677260",
+      "posted_at": "2026-11-14T12:00:20+00:00"
+    },
+    "recipe_result": {
+      "winners": [
+        "pascal"
+      ]
     }
   }
 }
