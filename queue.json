@@ -4468,7 +4468,14 @@
     "reply_mode": "replay",
     "post_id": "18019453295951035",
     "date": "2026-11-13",
-    "published_at": "2026-11-13T05:11:12+00:00"
+    "published_at": "2026-11-13T05:11:12+00:00",
+    "insights": {
+      "views": 560,
+      "likes": 1,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "hangul-fb1",
