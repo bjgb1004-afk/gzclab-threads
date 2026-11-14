@@ -14,6 +14,7 @@ import os
 import pathlib
 import sys
 
+import app_features
 import auto_reply
 import band_picks
 import collect_insights
@@ -151,6 +152,8 @@ def main():
     step("midweek", lambda: midweek.run_auto(now, dry=False))
     # 한글폭탄 개발 일지(화·목 18:07, 11/3~11/26). 댓글은 사람이 직접 단다.
     step("hangul", lambda: hangul_promo.run_auto(now, dry=False))
+    # 복권명당 기능 소개(11/15~11/28 매일 12:07, 잡담 글을 끈 자리).
+    step("features", lambda: app_features.run_auto(now, dry=False))
     step("hangul_comments", lambda: hangul_promo.collect(now, publish.TOKEN))
     # 토 10:07 번호대 분석. 하루 한 번, 그 뒤 4시간은 답글.
     step("band", lambda: band_picks.run_auto(now, dry=False))
