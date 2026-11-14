@@ -1,5 +1,5 @@
 {
-  "_collected": "2026-11-14",
+  "_collected": "2026-11-15",
   "hangul-launch": [],
   "hangul-core": [],
   "hangul-d01-charge": [],
@@ -9,5 +9,6 @@
   "hangul-d05-sweep": [],
   "hangul-d06-cross": [],
   "hangul-d07-danger": [],
-  "hangul-fb1": []
+  "hangul-fb1": [],
+  "hangul-d08-dict": []
 }
