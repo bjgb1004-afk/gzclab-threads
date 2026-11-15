@@ -4533,7 +4533,14 @@
     "reply_mode": "replay",
     "post_id": "18442263802179635",
     "date": "2026-11-14",
-    "published_at": "2026-11-14T01:10:02+00:00"
+    "published_at": "2026-11-14T01:10:02+00:00",
+    "insights": {
+      "views": 2976,
+      "likes": 5,
+      "replies": 6,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "winner-2026-11-14",
