@@ -91,3 +91,16 @@ def test_daily_caption_fits_and_asks_comment():
     cap = ip.daily_caption("genius", FRI)
     assert len(cap) <= ip.CAPTION_LIMIT and "댓글에 '번호'" in cap and "팔로우" in cap
     assert cap.count("#") <= 5
+
+
+def test_username_from_field_and_diagnostics():
+    st = state_with("genius-2026-11-06")
+    def fetch(path, params, token):
+        if path.endswith("/comments"):
+            return {"data": [{"id": "c9", "from": {"username": "park"}, "text": "번호"}]}
+        return {"comments_count": 1}
+    sent = []
+    ic.run(st, at(6), "t", print, fetch, lambda p, q, t: sent.append(p) or {"id": "r"})
+    assert sent == ["c9/replies"]
+    seen = st["comments"]["seen"]["genius-2026-11-06"]
+    assert seen["returned"] == 1 and seen["comments_count"] == 1

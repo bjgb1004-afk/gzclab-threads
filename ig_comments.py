@@ -79,7 +79,9 @@ def run(state, now, token, notify, fetch=get, send=post):
     sent = 0
     for key, media_id, draw_no in targets(state, now):
         try:
-            items = fetch(f"{media_id}/comments", {"fields": "id,text,username,replies{username}"}, token).get("data", [])
+            items = fetch(f"{media_id}/comments",
+                          {"fields": "id,text,username,from{id,username},replies{username,from{username}}"},
+                          token).get("data", [])
         except Exception as e:
             cs["blocked_day"] = today
             if not cs.get("error_notified"):
@@ -88,13 +90,28 @@ def run(state, now, token, notify, fetch=get, send=post):
             cs["last_error"] = str(e)[:300]
             return state
         cs.pop("error_notified", None)   # 읽기가 다시 되면 다음 실패 때 또 알린다
+        # 진단(2026-11-17): 앱에는 댓글 1개가 보이는데 답글이 0건이었다. API가 몇 개를 돌려줬고
+        # 왜 건너뛰었는지 남긴다. 닉네임은 공개 저장소라 남기지 않는다.
+        try:
+            api_count = fetch(media_id, {"fields": "comments_count"}, token).get("comments_count")
+        except Exception:
+            api_count = None
+        why = {}
+        cs.setdefault("seen", {})[key] = {"at": now.isoformat(timespec="seconds"), "returned": len(items),
+                                          "comments_count": api_count, "skipped": why}
         for c in items:
             if sent >= RUN_CAP or cs["count"] >= DAY_CAP:
                 return state
-            cid, user = c.get("id"), c.get("username")
-            if not cid or not user or user == ME or cid in cs["replied"]:
+            cid = c.get("id")
+            user = c.get("username") or (c.get("from") or {}).get("username")
+            reason = ("no_id" if not cid else "no_username" if not user else "mine" if user == ME
+                      else "done" if cid in cs["replied"] else None)
+            if reason:
+                why[reason] = why.get(reason, 0) + 1
                 continue
-            if any(r.get("username") == ME for r in (c.get("replies") or {}).get("data", [])):
+            if any((r.get("username") or (r.get("from") or {}).get("username")) == ME
+                   for r in (c.get("replies") or {}).get("data", [])):
+                why["answered_by_me"] = why.get("answered_by_me", 0) + 1
                 cs["replied"][cid] = "already"
                 continue
             text, nums = reply_text(user, draw_no)
@@ -102,6 +119,7 @@ def run(state, now, token, notify, fetch=get, send=post):
                 rid = send(f"{cid}/replies", {"message": text}, token).get("id")
             except Exception as e:
                 cs["last_error"] = str(e)[:300]
+                why["send_failed"] = why.get("send_failed", 0) + 1
                 return state
             cs["replied"][cid] = {"reply_id": rid, "numbers": nums, "draw": draw_no, "post": key}
             cs["count"] += 1
