@@ -1257,6 +1257,32 @@
   "comments": {
     "replied": {},
     "day": "2026-11-17",
-    "count": 0
+    "count": 0,
+    "seen": {
+      "band-2026-11-14": {
+        "at": "2026-11-17T12:12:13+00:00",
+        "returned": 0,
+        "comments_count": 0,
+        "skipped": {}
+      },
+      "band-2026-11-15": {
+        "at": "2026-11-17T12:12:13+00:00",
+        "returned": 0,
+        "comments_count": 0,
+        "skipped": {}
+      },
+      "genius-2026-11-16": {
+        "at": "2026-11-17T12:12:13+00:00",
+        "returned": 0,
+        "comments_count": 1,
+        "skipped": {}
+      },
+      "genius-2026-11-17": {
+        "at": "2026-11-17T12:12:13+00:00",
+        "returned": 0,
+        "comments_count": 0,
+        "skipped": {}
+      }
+    }
   }
 }
