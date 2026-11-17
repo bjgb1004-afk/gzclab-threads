@@ -4750,7 +4750,14 @@
     "reply_mode": "replay",
     "post_id": "18003918471003062",
     "date": "2026-11-16",
-    "published_at": "2026-11-16T05:10:12+00:00"
+    "published_at": "2026-11-16T05:10:12+00:00",
+    "insights": {
+      "views": 477,
+      "likes": 1,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "spitto-claim-2026-11-30",
