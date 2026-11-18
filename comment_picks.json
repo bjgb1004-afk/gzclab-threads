@@ -1933,5 +1933,35 @@
     ],
     "reply_id": "18191068348365136",
     "created_at": "2026-11-17T23:57:28+00:00"
+  },
+  {
+    "draw": 1251,
+    "recipe": "fibonacci",
+    "username": "usangbog2",
+    "numbers": [
+      3,
+      12,
+      13,
+      20,
+      21,
+      42
+    ],
+    "reply_id": "18130499636481180",
+    "created_at": "2026-11-18T00:13:13+00:00"
+  },
+  {
+    "draw": 1251,
+    "recipe": "fibonacci",
+    "username": "hetomury",
+    "numbers": [
+      2,
+      18,
+      20,
+      31,
+      34,
+      42
+    ],
+    "reply_id": "18390309052234510",
+    "created_at": "2026-11-18T00:13:31+00:00"
   }
 ]
