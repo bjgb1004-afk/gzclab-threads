@@ -1,5 +1,5 @@
 {
-  "_collected": "2026-11-18",
+  "_collected": "2026-11-19",
   "hangul-launch": [],
   "hangul-core": [],
   "hangul-d01-charge": [],
@@ -13,5 +13,6 @@
   "hangul-d08-dict": [],
   "hangul-d09-english": [],
   "hangul-d10-lang": [],
-  "hangul-d11-arirang": []
+  "hangul-d11-arirang": [],
+  "hangul-d12-polka": []
 }
