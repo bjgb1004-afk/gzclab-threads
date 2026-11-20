@@ -5024,7 +5024,14 @@
     "reply_mode": "replay",
     "post_id": "18376385866210942",
     "date": "2026-11-19",
-    "published_at": "2026-11-19T05:11:27+00:00"
+    "published_at": "2026-11-19T05:11:27+00:00",
+    "insights": {
+      "views": 787,
+      "likes": 4,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "hangul-d13-control",
