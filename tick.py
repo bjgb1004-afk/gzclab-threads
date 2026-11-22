@@ -24,6 +24,7 @@ import hangul_promo
 import lotto_picks
 import midweek
 import publish
+import site_promo
 import spitto
 import weekly_check
 from publish import telegram
@@ -154,6 +155,8 @@ def main():
     step("hangul", lambda: hangul_promo.run_auto(now, dry=False))
     # 복권명당 기능 소개(11/15~11/28 매일 12:07, 잡담 글을 끈 자리).
     step("features", lambda: app_features.run_auto(now, dry=False))
+    # 다른 서비스 홍보(11/23~12/6): 20:07 케이스탁 · 21:07 골목 놀이터 · 22:07 직장비교.
+    step("site_promo", lambda: site_promo.run_auto(now, dry=False))
     step("hangul_comments", lambda: hangul_promo.collect(now, publish.TOKEN))
     # 토 10:07 번호대 분석. 하루 한 번, 그 뒤 4시간은 답글.
     step("band", lambda: band_picks.run_auto(now, dry=False))
