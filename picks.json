@@ -1549,7 +1549,12 @@
     },
     "stats": {
       "post_id": "17992602522083782",
-      "posted_at": "2026-11-15T09:03:59+00:00"
+      "posted_at": "2026-11-15T09:03:59+00:00",
+      "grade_post_id": "18158995228523503",
+      "grade_result": {
+        "games": 50,
+        "ranks": {}
+      }
     },
     "result": {
       "numbers": [
