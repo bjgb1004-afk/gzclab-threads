@@ -5180,7 +5180,14 @@
     "reply_mode": "replay",
     "post_id": "18094739525199974",
     "date": "2026-11-21",
-    "published_at": "2026-11-21T01:08:37+00:00"
+    "published_at": "2026-11-21T01:08:37+00:00",
+    "insights": {
+      "views": 410,
+      "likes": 1,
+      "replies": 0,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "feature-band",
