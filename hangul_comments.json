@@ -1,5 +1,5 @@
 {
-  "_collected": "2026-11-23",
+  "_collected": "2026-11-24",
   "hangul-launch": [],
   "hangul-core": [],
   "hangul-d01-charge": [],
@@ -18,5 +18,6 @@
   "hangul-d13-control": [],
   "hangul-fb2": [],
   "hangul-d14-endless": [],
-  "hangul-d15-stage": []
+  "hangul-d15-stage": [],
+  "hangul-d16-board": []
 }
