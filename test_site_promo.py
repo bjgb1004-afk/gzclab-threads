@@ -21,7 +21,8 @@ def test_each_series_14_days_no_gap_fit_and_question():
             t = sp.body(series, p)
             assert len(t) <= sp.LIMIT, (series, p["key"], len(t))
             assert "?" in p["text"].splitlines()[-1] or "줘" in p["text"].splitlines()[-1], (series, p["key"])
-            assert "http" not in t and t.endswith(sp.SERIES[series]["tag"])
+            assert "http" not in t and "#" not in t and t == p["text"]
+            assert sp.link_text(series, p).splitlines()[-1].startswith(sp.SERIES[series]["link"])
 
 
 def test_times_and_once_per_day():
@@ -56,12 +57,15 @@ def test_gap_after_another_post(tmp_path, monkeypatch):
     qf.write_text(json.dumps(queue), encoding="utf-8")
     monkeypatch.setattr(sp, "QUEUE", qf)
     sent = []
-    monkeypatch.setattr(sp.publish, "publish", lambda text, reply_to=None: sent.append(text) or "pid")
+    replies = []
+    monkeypatch.setattr(sp.publish, "publish",
+                        lambda text, reply_to=None: (replies if reply_to else sent).append(text) or "pid")
     monkeypatch.setattr(sp.publish, "telegram", lambda msg: None)
     sp.run_auto(now)
     assert sent == []
     sp.run_auto(now + datetime.timedelta(minutes=15))
-    assert len(sent) == 1 and "경찰과 도둑" in sent[0]
+    assert len(sent) == 1 and "경찰과 도둑" in sent[0] and "http" not in sent[0]
+    assert replies == ["골목 놀이터 바로가기\nhttps://golmok-play.gzclab.workers.dev/gyeongdo"]
     ids = [q["id"] for q in json.loads(qf.read_text(encoding="utf-8"))]
     assert ids[-1] == "golmok-gyeongdo-bots"
     sp.run_auto(now + datetime.timedelta(minutes=40))
@@ -75,5 +79,5 @@ def test_not_auto_reply_targets():
     assert auto_reply.targets(q, now) == []
 
 
-def test_no_link_reply():
-    assert not any(sp.publish.link_ok(f"{s}-x") for s in sp.SERIES)
+def test_link_goes_in_first_reply():
+    assert all(sp.publish.link_ok(f"{s}-x") for s in sp.SERIES)

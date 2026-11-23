@@ -11,7 +11,7 @@ gzclab은 원래 '직접 만든 웹/앱 홍보' 계정이다. 다만 팔로워 1
 사실만 쓴다 — 기능·숫자는 각 저장소 코드에서 확인한 값이다(k-stockreplay, golmok-play, jobscale).
 케이스탁 글은 매수·매도 권유로 읽히지 않게 쓴다(사이트 원칙: 추천 없음, 실시간 시세 없음).
 
-링크는 본문에도 답글에도 넣지 않는다(2026-11-23 유저: 본문 링크 금지). 링크 답글도 달지 않는다 — 프로필에 링크 답글이
+본문에는 링크·주제 태그를 넣지 않고, 링크는 첫 댓글로 단다(2026-11-23 유저 요청). — 프로필에 링크 답글이
 줄줄이 쌓이는 걸 유저가 싫어했다(publish.LINK_REPLY_PREFIXES, 2026-11-06).
 auto_reply 대상이 아니다("구 이름 남겨줘"를 쓰지 않는다). 댓글은 사람이 단다.
 
@@ -39,9 +39,9 @@ JOBAPP = ("https://play.google.com/store/apps/details?id=io.github.bjgb1004_afk.
           "&referrer=utm_source%3Dthreads%26utm_medium%3Dsocial%26utm_campaign%3Dpromo")
 
 SERIES = {
-    "kstock": {"time": (20, 7), "name": "케이스탁", "tag": "#주식", "link": KSTOCK},
-    "golmok": {"time": (21, 7), "name": "골목 놀이터", "tag": "#추억의놀이", "link": GOLMOK},
-    "jobapp": {"time": (22, 7), "name": "직장비교", "tag": "#알바", "link": JOBAPP},
+    "kstock": {"time": (20, 7), "name": "케이스탁", "lead": "케이스탁 바로가기", "link": KSTOCK},
+    "golmok": {"time": (21, 7), "name": "골목 놀이터", "lead": "골목 놀이터 바로가기", "link": GOLMOK},
+    "jobapp": {"time": (22, 7), "name": "직장비교", "lead": "직장비교 받기 (구글 플레이)", "link": JOBAPP},
 }
 
 START = D(2026, 11, 23)
@@ -431,8 +431,14 @@ def kst(now):
 
 
 def body(series, p):
-    """본문 + 주제 태그 하나. 링크는 넣지 않는다(2026-11-23 유저: 본문 링크 금지)."""
-    return f"{p['text']}\n\n{SERIES[series]['tag']}"
+    """본문만. 주제 태그·링크 없음(2026-11-23 유저 요청). 링크는 첫 댓글로 단다."""
+    return p["text"]
+
+
+def link_text(series, p):
+    s = SERIES[series]
+    link = s["link"] + p.get("path", "") if series == "golmok" else s["link"]
+    return f"{s['lead']}\n{link}"
 
 
 def recent_post(queue, now, minutes=GAP_MIN):
@@ -477,6 +483,10 @@ def run_auto(now, dry=False):
     except Exception as e:
         publish.telegram(f"❌ {name} 홍보 글 발행 실패 ({p['key']})\n{e}")
         raise
+    try:
+        publish.link_reply(f"{series}-{p['key']}", link_text(series, p), pid)
+    except Exception as e:
+        publish.telegram(f"⚠️ {name} 링크 댓글 실패 ({p['key']})\n{e}")
     queue = json.loads(QUEUE.read_text(encoding="utf-8"))
     queue.append({"id": f"{series}-{p['key']}", "status": "published", "slot": series, "text": text,
                   "post_id": pid,
@@ -491,4 +501,4 @@ if __name__ == "__main__":
     for series in SERIES:
         for p in POSTS[series]:
             t = body(series, p)
-            print(f"== {series} {p['date']} {p['key']} {len(t)}자\n{t}\n")
+            print(f"== {series} {p['date']} {p['key']} {len(t)}자\n{t}\n-- 첫 댓글: {link_text(series, p)}\n")
