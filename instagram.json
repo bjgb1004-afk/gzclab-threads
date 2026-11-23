@@ -1461,28 +1461,34 @@
         "skipped": {}
       },
       "genius-2026-11-20": {
-        "at": "2026-11-23T12:33:15+00:00",
+        "at": "2026-11-23T12:38:40+00:00",
         "returned": 0,
         "comments_count": 0,
         "skipped": {}
       },
       "band-2026-11-21": {
-        "at": "2026-11-23T12:33:15+00:00",
+        "at": "2026-11-23T12:38:40+00:00",
         "returned": 0,
         "comments_count": 0,
         "skipped": {}
       },
       "band-2026-11-22": {
-        "at": "2026-11-23T12:33:15+00:00",
-        "returned": 1,
-        "comments_count": 1,
-        "skipped": {}
+        "at": "2026-11-23T12:38:40+00:00",
+        "returned": 2,
+        "comments_count": 2,
+        "skipped": {
+          "mine": 1,
+          "done": 1
+        }
       },
       "genius-2026-11-23": {
-        "at": "2026-11-23T12:33:15+00:00",
-        "returned": 1,
-        "comments_count": 1,
-        "skipped": {}
+        "at": "2026-11-23T12:38:40+00:00",
+        "returned": 2,
+        "comments_count": 2,
+        "skipped": {
+          "mine": 1,
+          "done": 1
+        }
       }
     }
   }
