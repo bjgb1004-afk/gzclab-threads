@@ -51,6 +51,16 @@ def test_targets_only_number_reels_recent():
     assert keys == ["genius-2026-11-06", "band-2026-11-07"]
 
 
+def test_backfill_once_uses_this_weeks_draw():
+    st = state_with("genius-2026-11-16", "genius-2026-11-12", "band-2026-11-22")
+    now = at(23, 22)
+    got = ic.targets(st, now)
+    assert [k for k, _, _ in got] == ["genius-2026-11-16", "band-2026-11-22"]
+    assert {d for _, _, d in got} == {1252}
+    # 11/24가 지나면 원래 3일 규칙만
+    assert [k for k, _, _ in ic.targets(st, at(25))] == ["band-2026-11-22"]
+
+
 def test_replies_once_skips_me_and_already_answered():
     st = state_with("genius-2026-11-06")
     comments = {"data": [

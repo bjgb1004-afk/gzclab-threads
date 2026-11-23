@@ -23,6 +23,9 @@ API = "https://graph.instagram.com/v23.0"
 KINDS = ("genius", "band")       # 번호를 주는 릴스만 대상
 LOOKBACK_DAYS = 3
 RUN_CAP, DAY_CAP = 10, 100
+# 1회성(2026-11-23 유저 요청): Meta 앱이 개발 모드라 못 받던 11/16~11/20 릴스 댓글에 답한다.
+# 지난 회차 번호는 의미가 없으니 이번 주(지금 기준 다음 추첨) 회차 번호로 준다. 11/24가 지나면 저절로 꺼진다.
+BACKFILL_FROM, BACKFILL_UNTIL, BACKFILL_DAYS = datetime.date(2026, 11, 23), datetime.date(2026, 11, 24), 10
 ME = "gzclab"
 
 
@@ -65,6 +68,8 @@ def targets(state, now):
         if (today - day).days <= LOOKBACK_DAYS:
             draw_no = g.upcoming_draw_no(datetime.datetime.combine(day, datetime.time(12), g.KST))
             out.append((key, rec["media_id"], draw_no))
+        elif BACKFILL_FROM <= today <= BACKFILL_UNTIL and (today - day).days <= BACKFILL_DAYS:
+            out.append((key, rec["media_id"], g.upcoming_draw_no(now)))
     return out
 
 
