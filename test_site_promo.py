@@ -21,7 +21,7 @@ def test_each_series_14_days_no_gap_fit_and_question():
             t = sp.body(series, p)
             assert len(t) <= sp.LIMIT, (series, p["key"], len(t))
             assert "?" in p["text"].splitlines()[-1] or "줘" in p["text"].splitlines()[-1], (series, p["key"])
-            assert sp.SERIES[series]["link"] in t and t.endswith(sp.SERIES[series]["tag"])
+            assert "http" not in t and t.endswith(sp.SERIES[series]["tag"])
 
 
 def test_times_and_once_per_day():
@@ -61,7 +61,7 @@ def test_gap_after_another_post(tmp_path, monkeypatch):
     sp.run_auto(now)
     assert sent == []
     sp.run_auto(now + datetime.timedelta(minutes=15))
-    assert len(sent) == 1 and "golmok-play" in sent[0]
+    assert len(sent) == 1 and "경찰과 도둑" in sent[0]
     ids = [q["id"] for q in json.loads(qf.read_text(encoding="utf-8"))]
     assert ids[-1] == "golmok-gyeongdo-bots"
     sp.run_auto(now + datetime.timedelta(minutes=40))

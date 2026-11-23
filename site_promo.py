@@ -11,7 +11,7 @@ gzclab은 원래 '직접 만든 웹/앱 홍보' 계정이다. 다만 팔로워 1
 사실만 쓴다 — 기능·숫자는 각 저장소 코드에서 확인한 값이다(k-stockreplay, golmok-play, jobscale).
 케이스탁 글은 매수·매도 권유로 읽히지 않게 쓴다(사이트 원칙: 추천 없음, 실시간 시세 없음).
 
-링크는 본문 안에 둔다(스레드는 본문 링크 감점을 없앴다). 링크 답글은 달지 않는다 — 프로필에 링크 답글이
+링크는 본문에도 답글에도 넣지 않는다(2026-11-23 유저: 본문 링크 금지). 링크 답글도 달지 않는다 — 프로필에 링크 답글이
 줄줄이 쌓이는 걸 유저가 싫어했다(publish.LINK_REPLY_PREFIXES, 2026-11-06).
 auto_reply 대상이 아니다("구 이름 남겨줘"를 쓰지 않는다). 댓글은 사람이 단다.
 
@@ -431,10 +431,8 @@ def kst(now):
 
 
 def body(series, p):
-    """본문 + 링크 + 주제 태그 하나."""
-    s = SERIES[series]
-    link = s["link"] + p.get("path", "") if series == "golmok" else s["link"]
-    return f"{p['text']}\n\n{link}\n\n{s['tag']}"
+    """본문 + 주제 태그 하나. 링크는 넣지 않는다(2026-11-23 유저: 본문 링크 금지)."""
+    return f"{p['text']}\n\n{SERIES[series]['tag']}"
 
 
 def recent_post(queue, now, minutes=GAP_MIN):
