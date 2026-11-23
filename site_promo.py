@@ -25,6 +25,8 @@ import json
 import pathlib
 import sys
 
+import urllib.request
+
 import publish
 
 KST = datetime.timezone(datetime.timedelta(hours=9))
@@ -331,7 +333,7 @@ B: 월 230만 원, 하루 8시간, 편도 10분
 직장비교는 이 실질시급을 자동으로 계산해줌.
 
 너라면 A 감, B 감?"""},
-    {"key": "convert", "text": """일급 100,620원이랑 월급 210만 원, 뭐가 더 많음?
+    {"key": "convert", "real": True, "text": """일급 100,620원이랑 월급 210만 원, 뭐가 더 많음?
 
 공고마다 연봉, 월급, 일급, 시급으로 제각각 적혀 있어서 비교가 안 됨.
 직장비교는 전부 월급으로 바꿔서 같은 줄에 세워줌.
@@ -346,7 +348,7 @@ B: 월 230만 원, 하루 8시간, 편도 10분
 별점을 직접 옮겨도 바로 바뀜.
 
 넷 중에 너는 어느 형임?"""},
-    {"key": "filter", "text": """절대 양보 못 하는 조건이 있으면 아예 걸러버리면 됨.
+    {"key": "filter", "real": True, "text": """절대 양보 못 하는 조건이 있으면 아예 걸러버리면 됨.
 
 직장비교에 선을 정해두면
 "퇴근 18시 30분까지", "통근 40분 이내", "최저 월급 230만 원", "주 5일까지"
@@ -360,7 +362,7 @@ B: 월 230만 원, 하루 8시간, 편도 10분
 드래그 복사가 막힌 사이트는 서클 투 서치나 구글 렌즈로 글자 가져오는 방법을 앱 안에 적어둠.
 
 공고 볼 때 보통 어디서 봄? 앱? 사이트?"""},
-    {"key": "public", "text": """공기업 채용공고를 앱 안에서 바로 찾을 수 있게 했음.
+    {"key": "public", "real": True, "text": """공기업 채용공고를 앱 안에서 바로 찾을 수 있게 했음.
 
 지방공기업, 지방 출자·출연기관 채용공고를 지역별로 보여주고
 마감 임박한 순서로 정렬함. 하루 한 번 새로 받아옴(공공데이터포털).
@@ -377,7 +379,7 @@ B: 월 230만 원, 하루 8시간, 편도 10분
 시급·일급·연봉으로 넣어도 됨.
 
 첫 월급 받았을 때 제일 먼저 뭐 했음?"""},
-    {"key": "table", "text": """공고 두 개를 머릿속으로 비교하면 조건 네 개 넘어가는 순간 꼬임.
+    {"key": "table", "real": True, "text": """공고 두 개를 머릿속으로 비교하면 조건 네 개 넘어가는 순간 꼬임.
 
 직장비교 '나란히 비교표'는
 월급, 실질시급, 근무시간, 통근, 근무일수, 업무강도, 주말근무를
@@ -393,7 +395,7 @@ B: 월 230만 원, 하루 8시간, 편도 10분
 대신 폰 바꿀 땐 백업 파일로 옮겨야 함.
 
 구직 앱 쓸 때 개인정보 신경 쓰는 편임?"""},
-    {"key": "share", "text": """이직 고민은 혼자 하기 어려움.
+    {"key": "share", "real": True, "text": """이직 고민은 혼자 하기 어려움.
 
 직장비교에서 결과를 링크로 만들어서 보내면
 받는 사람은 읽기 전용으로 내 순위를 그대로 봄.
@@ -407,7 +409,7 @@ B: 월 230만 원, 하루 8시간, 편도 10분
 "옮기면 월급은 오르는데 실질시급은 내려간다" 같은 게 바로 보임.
 
 이직 고민할 때 제일 오래 붙잡고 있던 조건은 뭐였음?"""},
-    {"key": "parttime", "text": """시급 1만 2천 원이랑 1만 3천 원 중 어디가 나을까.
+    {"key": "parttime", "real": True, "text": """시급 1만 2천 원이랑 1만 3천 원 중 어디가 나을까.
 
 천 원 차이면 당연히 1만 3천 원 같은데,
 버스 40분 더 타야 하면 얘기가 달라짐.
@@ -540,6 +542,81 @@ AS 전화 오면 제일 먼저 뭐부터 찾아봄?"""},
 너는 뭐가 제일 싫음?"""},
 ], start=D(2026, 11, 24))
 
+# 직장비교 "real": True 날(격일 6개)은 그날 마감이 가까운 실제 공공기관 채용공고 하나를 골라 쓴다(2026-11-23 유저 요청).
+# 출처: 공공데이터포털 「행정안전부 한국지역정보개발원_채용정보 조회 서비스」(이용허락범위 제한 없음) —
+# 직장비교 앱의 '공고 찾기'가 하루 한 번 받아 jobscale 저장소에 올리는 jobs.json을 그대로 읽는다.
+# 민간 구인 사이트 공고는 쓰지 않는다(약관·업체 분쟁). 공고를 못 가져오면 그날의 기능 소개 글(text)로 대신한다.
+# 연봉은 공고에 '3400만원 이상' 같은 구간 하한으로만 나오니 "최소"로 쓰고, 근무시간은 공고에 없어서
+# 주 40시간(월 209시간, 최저임금 월 환산과 같은 기준)으로 잡았다고 글에 밝힌다.
+JOBS_URL = "https://raw.githubusercontent.com/bjgb1004-afk/jobscale/main/docs/data/jobs.json"
+MIN_WAGE = 10320          # 2026년 최저시급(고용노동부 고시). 2027년 1월부터 10,700원 — 시리즈는 12/6에 끝난다.
+MONTH_HOURS = 209         # 주 40시간 + 주휴, 월 환산
+COMMUTE_HOURS = round(1 * 5 * 4.345, 1)   # 왕복 1시간 × 주 5일 × 월 4.345주
+
+
+def fetch_jobs(url=JOBS_URL):
+    with urllib.request.urlopen(url, timeout=30) as r:
+        return json.load(r)
+
+
+def used_job_ids(queue):
+    return {q["job_id"] for q in queue if q.get("job_id")}
+
+
+def pick_job(data, today, used=()):
+    """마감이 가장 가까운(오늘 포함) 공고 중 연봉 하한이 3천만~8천만 원인 것 하나. 정규직 먼저."""
+    cands = [j for j in data.get("items", [])
+             if j.get("incomeBound") == "min" and j.get("incomeWon") and 30000000 <= j["incomeWon"] <= 80000000
+             and "억" not in (j.get("income") or "") and j.get("end", "") >= today.isoformat()
+             and j.get("url") and j.get("id") not in used]
+    if not cands:
+        return None
+    cands.sort(key=lambda j: (j["end"], j.get("emp") != "regular", j.get("id")))
+    return cands[0]
+
+
+def _won(n):
+    return f"{int(round(n, -1)):,}"
+
+
+def real_post(job, data, today, idx=0):
+    region = data.get("regions", {}).get(job.get("sido"), "")
+    if region and job["org"].startswith(region[:2]):
+        region = ""            # '인천광역시 인천광역시서해구시설공단'처럼 겹치지 않게
+    end = datetime.date.fromisoformat(job["end"])
+    when = "오늘" if end == today else "내일" if end == today + datetime.timedelta(1) else f"{end.month}월 {end.day}일"
+    title = job.get("title", "")
+    title = title if len(title) <= 40 else title[:39] + "…"
+    monthly = job["incomeWon"] / 12
+    h = monthly / MONTH_HOURS
+    hc = monthly / (MONTH_HOURS + COMMUTE_HOURS)
+    gap = h - MIN_WAGE
+    vs = f"올해 최저시급 10,320원보다 {_won(gap)}원 높음." if gap >= 0 else f"올해 최저시급 10,320원보다 {_won(-gap)}원 낮게 나옴(연봉 하한 기준)."
+    hooks = [
+        f"{when} 마감인 공공기관 공고 하나 가져옴.",
+        "공고에 적힌 연봉 말고, 시간당 얼마인지 계산해본 적 있음?",
+        "공기업 공고엔 연봉이 '얼마 이상'으로만 적혀 있음. 그래서 직접 쪼개봄.",
+    ]
+    asks = [
+        "너라면 이 공고, 집에서 몇 분 거리까지면 지원함?",
+        "연봉 볼 때 시급으로도 바꿔서 봄?",
+        "통근 왕복 1시간, 너는 감수할 수 있음?",
+    ]
+    i = idx % 3
+    return (f"{hooks[i]}\n\n"
+            f"{(region + ' ') if region else ''}{job['org']}\n{title}\n{job.get('jobType') or ''}, 연봉 {job['income']}, {when} 마감\n\n"
+            f"연봉을 12로 나누면 최소 월 {monthly / 10000:.0f}만 원.\n"
+            f"공고에 근무시간이 없어서 주 40시간(월 209시간)으로 잡으면 시급 약 {_won(h)}원.\n"
+            f"{vs}\n\n"
+            f"근데 출퇴근 왕복 1시간을 일한 시간처럼 치면 시급 약 {_won(hc)}원까지 내려감.\n"
+            f"직장비교는 이걸 공고마다 자동으로 계산해줌.\n\n"
+            f"{asks[i]}")
+
+
+def real_link_text(job):
+    return f"원문 공고\n{job['url']}\n\n직장비교 받기 (구글 플레이)\n{JOBAPP}"
+
+
 POSTS = {"hjone": HJONE_POSTS, "kstock": KSTOCK_POSTS, "golmok": GOLMOK_POSTS, "jobapp": JOBAPP_POSTS}
 
 
@@ -590,7 +667,17 @@ def run_auto(now, dry=False):
     if recent_post(queue, now):
         return 0
     series, p = hit
-    text = body(series, p)
+    text, link, job = body(series, p), link_text(series, p), None
+    if p.get("real"):
+        try:
+            data = fetch_jobs()
+            today = kst(now).date()
+            job = pick_job(data, today, used_job_ids(queue))
+            if job:
+                idx = sum(1 for x in POSTS[series] if x.get("real") and x["date"] < p["date"])
+                text, link = real_post(job, data, today, idx), real_link_text(job)
+        except Exception as e:
+            publish.telegram(f"⚠️ 직장비교 실제 공고 못 가져옴 — 기능 소개 글로 대신 ({p['key']})\n{e}")
     if dry:
         print(text)
         return 0
@@ -601,12 +688,12 @@ def run_auto(now, dry=False):
         publish.telegram(f"❌ {name} 홍보 글 발행 실패 ({p['key']})\n{e}")
         raise
     try:
-        publish.link_reply(f"{series}-{p['key']}", link_text(series, p), pid)
+        publish.link_reply(f"{series}-{p['key']}", link, pid)
     except Exception as e:
         publish.telegram(f"⚠️ {name} 링크 댓글 실패 ({p['key']})\n{e}")
     queue = json.loads(QUEUE.read_text(encoding="utf-8"))
     queue.append({"id": f"{series}-{p['key']}", "status": "published", "slot": series, "text": text,
-                  "post_id": pid,
+                  "post_id": pid, **({"job_id": job["id"]} if job else {}),
                   "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")})
     QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     publish.telegram(f"📣 {name} 홍보 글 발행됨 ({p['key']})")

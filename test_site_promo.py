@@ -90,3 +90,59 @@ def test_not_auto_reply_targets():
 
 def test_link_goes_in_first_reply():
     assert all(sp.publish.link_ok(f"{s}-x") for s in sp.SERIES)
+
+
+JOBS = {"regions": {"007001": "서울특별시", "007004": "인천광역시"}, "items": [
+    {"id": "1", "sido": "007001", "org": "성동문화재단", "title": "직원 채용", "jobType": "일반정규직", "emp": "regular",
+     "income": "3000만원 이상", "incomeWon": 30000000, "incomeBound": "min", "end": "2026-11-25", "url": "https://job.cleaneye.go.kr/a?idx=1"},
+    {"id": "2", "sido": "007004", "org": "인천광역시서해구시설공단", "title": "시설관리", "jobType": "기간제", "emp": "contract",
+     "income": "4000만원 이상", "incomeWon": 40000000, "incomeBound": "min", "end": "2026-11-25", "url": "https://job.cleaneye.go.kr/a?idx=2"},
+    {"id": "3", "sido": "007001", "org": "임원", "title": "사장", "jobType": "임원", "emp": "contract",
+     "income": "1억원 이상", "incomeWon": 100000000, "incomeBound": "min", "end": "2026-11-24", "url": "u"},
+    {"id": "4", "sido": "007001", "org": "지난공고", "title": "x", "jobType": "일반정규직", "emp": "regular",
+     "income": "3500만원 이상", "incomeWon": 35000000, "incomeBound": "min", "end": "2026-11-20", "url": "u"},
+]}
+
+
+def test_pick_job_closest_deadline_regular_first_and_skips_used():
+    today = datetime.date(2026, 11, 25)
+    assert sp.pick_job(JOBS, today)["id"] == "1"
+    assert sp.pick_job(JOBS, today, {"1"})["id"] == "2"
+    assert sp.pick_job(JOBS, today, {"1", "2"}) is None
+
+
+def test_real_post_numbers_and_honest_assumptions():
+    today = datetime.date(2026, 11, 25)
+    t = sp.real_post(JOBS["items"][0], JOBS, today)
+    assert "서울특별시 성동문화재단" in t and "오늘 마감" in t
+    assert "최소 월 250만 원" in t and "시급 약 11,960원" in t and "1,640원 높음" in t
+    assert "주 40시간(월 209시간)으로 잡으면" in t and "http" not in t and len(t) <= sp.LIMIT
+    t2 = sp.real_post(JOBS["items"][1], JOBS, today, 1)
+    assert "인천광역시 인천광역시" not in t2
+    assert sp.real_link_text(JOBS["items"][0]).startswith("원문 공고\nhttps://job.cleaneye.go.kr/a?idx=1")
+
+
+def _run(monkeypatch, tmp_path, now, fetch):
+    qf = tmp_path / "queue.json"
+    qf.write_text(json.dumps([{"id": "kstock-myreplay"}, {"id": "golmok-deulsseok"}]), encoding="utf-8")
+    monkeypatch.setattr(sp, "QUEUE", qf)
+    monkeypatch.setattr(sp, "fetch_jobs", fetch)
+    out = {"post": [], "reply": [], "tg": []}
+    monkeypatch.setattr(sp.publish, "publish",
+                        lambda text, reply_to=None: out["reply" if reply_to else "post"].append(text) or "pid")
+    monkeypatch.setattr(sp.publish, "telegram", lambda m: out["tg"].append(m))
+    sp.run_auto(now)
+    return out, json.loads(qf.read_text(encoding="utf-8"))
+
+
+def test_real_day_uses_public_job_and_records_it(monkeypatch, tmp_path):
+    out, q = _run(monkeypatch, tmp_path, at(25, 22, 7), lambda: JOBS)
+    assert "성동문화재단" in out["post"][0] and out["reply"][0].startswith("원문 공고")
+    assert q[-1]["id"] == "jobapp-convert" and q[-1]["job_id"] == "1"
+
+
+def test_real_day_falls_back_to_feature_post(monkeypatch, tmp_path):
+    def boom():
+        raise RuntimeError("down")
+    out, q = _run(monkeypatch, tmp_path, at(25, 22, 7), boom)
+    assert out["post"][0].startswith("일급 100,620원") and "job_id" not in q[-1] and out["tg"]
