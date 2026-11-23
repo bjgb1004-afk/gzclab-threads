@@ -26,10 +26,10 @@ def test_each_series_14_days_no_gap_fit_and_question():
             assert sp.link_text(series, p).splitlines()[-1].startswith(sp.SERIES[series]["link"])
 
 
-def test_hjone_at_dawn_from_nov24():
-    assert sp.HJONE_POSTS[0]["date"] == datetime.date(2026, 11, 24)
-    assert sp.due(at(24, 5, 6), []) is None
-    s, p = sp.due(at(24, 5, 7), [])
+def test_hjone_at_dawn_from_nov25():
+    assert sp.HJONE_POSTS[0]["date"] == datetime.date(2026, 11, 25)
+    assert sp.due(at(25, 5, 6), []) is None
+    s, p = sp.due(at(25, 5, 7), [])
     assert (s, p["key"]) == ("hjone", "intro")
     assert sp.link_text(s, p).endswith("utm_campaign%3Dpromo")
 
