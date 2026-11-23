@@ -15,7 +15,8 @@ def at(d, h, m, mon=11):
 def test_each_series_14_days_no_gap_fit_and_question():
     for series, posts in sp.POSTS.items():
         days = [p["date"] for p in posts]
-        assert len(days) == 14 and days == [sp.START + datetime.timedelta(i) for i in range(14)], series
+        start = days[0]
+        assert len(days) == 14 and days == [start + datetime.timedelta(i) for i in range(14)], series
         assert len({p["key"] for p in posts}) == 14, series
         for p in posts:
             t = sp.body(series, p)
@@ -23,6 +24,14 @@ def test_each_series_14_days_no_gap_fit_and_question():
             assert "?" in p["text"].splitlines()[-1] or "줘" in p["text"].splitlines()[-1], (series, p["key"])
             assert "http" not in t and "#" not in t and t == p["text"]
             assert sp.link_text(series, p).splitlines()[-1].startswith(sp.SERIES[series]["link"])
+
+
+def test_hjone_at_dawn_from_nov24():
+    assert sp.HJONE_POSTS[0]["date"] == datetime.date(2026, 11, 24)
+    assert sp.due(at(24, 5, 6), []) is None
+    s, p = sp.due(at(24, 5, 7), [])
+    assert (s, p["key"]) == ("hjone", "intro")
+    assert sp.link_text(s, p).endswith("utm_campaign%3Dpromo")
 
 
 def test_times_and_once_per_day():

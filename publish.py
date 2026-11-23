@@ -61,7 +61,7 @@ def publish(text, reply_to=None):
 # 링크가 5~6개 줄줄이 붙어 광고 계정처럼 보였다. 링크를 누를 이유가 분명한 글만 남긴다:
 #   winner-  1등 번호 되짚어보기 → 앱 '놓친 당첨금'으로 바로 이어진다
 #   hangul-  한글폭탄 → 플레이스토어 설치 (hangul_promo가 직접 단다)
-LINK_REPLY_PREFIXES = ("winner-", "hangul-", "kstock-", "golmok-", "jobapp-")  # site_promo: 2026-11-23 유저 요청(링크는 첫 댓글)
+LINK_REPLY_PREFIXES = ("winner-", "hangul-", "kstock-", "golmok-", "jobapp-", "hjone-")  # site_promo: 2026-11-23 유저 요청(링크는 첫 댓글)
 
 
 def link_ok(post_key):
