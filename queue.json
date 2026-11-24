@@ -5443,7 +5443,10 @@
     "text": "로또 번호 앱 만든 사람이 만든 주식 사이트도 있음.\n\n케이스탁은 \"내 관심종목에 오늘 무슨 일이 있었나\"만 정리해줌.\n그날 나온 공시, 배당, 지분 변화를 모아서 보여주는 곳.\n\n실시간 시세 없음. 이 종목 사라 같은 추천도 없음.\n일부러 뺐음.\n\n주식 하는 사람들, 공시는 매일 챙겨봄? 아니면 뉴스 뜨고 나서야 앎?\n\nhttps://k-stockreplay.pe.kr\n\n#주식",
     "post_id": "17943891024400913",
     "published_at": "2026-11-23T12:16:46+00:00",
-    "insights_attempts": 2
+    "insights_attempts": 3,
+    "insights": {
+      "error": "{\"error\":{\"message\":\"Unsupported get request. Object with ID '17943891024400913' does not exist, cannot be loaded due to missing permissions, or does not support this operation\",\"code\":100,\"type\":\"THA"
+    }
   },
   {
     "id": "golmok-intro",
