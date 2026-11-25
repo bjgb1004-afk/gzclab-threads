@@ -45,9 +45,10 @@ def test_times_and_once_per_day():
     assert sp.due(at(23, 22, 7), q)[0] == "jobapp"
     q.append({"id": "jobapp-intro"})
     assert sp.due(at(23, 23, 59), q) is None
-    # 90분 넘게 늦으면 건너뜀(루프가 끊겼다 살아나도 몰아서 안 나감)
-    assert sp.due(at(23, 21, 40), []) [0] == "golmok"
-    assert sp.due(at(23, 23, 40), []) is None
+    # 4시간 안이면 늦게라도 나감(순서대로, 간격은 GAP_MIN), 넘으면 건너뜀
+    assert sp.due(at(23, 21, 40), [])[0] == "kstock"
+    assert sp.due(at(23, 23, 40), [{"id": "kstock-intro"}, {"id": "golmok-intro"}])[0] == "jobapp"
+    assert sp.due(at(24, 9, 30), []) is None
     # 다음 날은 다음 글
     assert sp.due(at(24, 20, 10), q)[1]["key"] == "today"
 
@@ -124,7 +125,7 @@ def test_real_post_numbers_and_honest_assumptions():
 
 def _run(monkeypatch, tmp_path, now, fetch):
     qf = tmp_path / "queue.json"
-    qf.write_text(json.dumps([{"id": "kstock-myreplay"}, {"id": "golmok-deulsseok"}]), encoding="utf-8")
+    qf.write_text(json.dumps([{"id": "kstock-13f"}, {"id": "golmok-deulsseok"}]), encoding="utf-8")
     monkeypatch.setattr(sp, "QUEUE", qf)
     monkeypatch.setattr(sp, "fetch_jobs", fetch)
     out = {"post": [], "reply": [], "tg": []}

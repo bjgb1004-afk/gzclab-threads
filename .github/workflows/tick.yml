@@ -34,6 +34,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # 아래 'Chain' 스텝이 다음 실행을 예약한다(2026-11-25 유저 승인)
 
 # 두 개가 동시에 돌면 같은 글이 두 번 나간다. 겹치면 뒤엣것이 앞엣것을 기다린다.
 concurrency:
@@ -47,6 +48,16 @@ jobs:
     timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
+
+      # 다음 실행을 시작하자마자 예약해 둔다(2026-11-25). 크론만 믿었더니 루프가 끝난 뒤 다음 run이
+      # 안 떠서 11/23 19:21~21:18, 11/24 02:58~08:05, 11/25 18:46~21:58에 발행·자동답글이 멈췄다.
+      # GITHUB_TOKEN으로 부른 workflow_dispatch는 예외적으로 새 run을 만든다(다른 이벤트는 안 만듦).
+      # 예약된 run은 위 concurrency 줄에서 기다리다 이 run이 끝나는 순간 시작한다. 그사이 크론 run이
+      # 오면 대기 자리가 그쪽으로 바뀔 뿐이라 겹쳐 돌지 않는다. 실패해도 루프는 그대로 돈다.
+      - name: Chain
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run tick.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "chain dispatch failed"
 
       # 스레드 파이프라인은 표준 라이브러리만 쓴다. 이 둘은 인스타 카드(cards.py)를
       # 그리는 데만 필요하다 — 없으면 인스타 단계만 죽고 스레드는 그대로 돈다.

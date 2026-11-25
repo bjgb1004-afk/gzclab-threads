@@ -33,7 +33,7 @@ KST = datetime.timezone(datetime.timedelta(hours=9))
 QUEUE = pathlib.Path(__file__).with_name("queue.json")
 LIMIT = 500
 GAP_MIN = 15
-LATE_MIN = 90   # 이만큼 늦으면 그날 그 글은 건너뛴다 — 루프가 끊겼다 살아나 세 글이 몰아서 나가지 않게
+LATE_MIN = 240  # 이만큼 늦으면 그날 그 글은 건너뛴다. 루프가 끊겼다 살아나도 늦게라도 나가게(2026-11-25 유저: 케이스탁도 나가라) — 몰림은 GAP_MIN이 15분 간격으로 푼다. 자정은 넘기지 않는다
 D = datetime.date
 
 KSTOCK = "https://k-stockreplay.pe.kr"
