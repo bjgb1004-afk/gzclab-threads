@@ -3418,5 +3418,20 @@
     ],
     "reply_id": "17923392654536185",
     "created_at": "2026-11-27T00:10:47+00:00"
+  },
+  {
+    "draw": 1252,
+    "recipe": "euler",
+    "username": "paul_lay_naaeri_dongdonglove",
+    "numbers": [
+      11,
+      19,
+      29,
+      34,
+      37,
+      45
+    ],
+    "reply_id": "17888228700522908",
+    "created_at": "2026-11-27T00:36:47+00:00"
   }
 ]
