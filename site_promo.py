@@ -4,6 +4,7 @@
   20:07 케이스탁(k-stockreplay.pe.kr)      id: kstock-<key>
   21:07 골목 놀이터(golmok-play)            id: golmok-<key>
   22:07 직장비교 앱(구글 플레이)             id: jobapp-<key>
+        └ 11/28부터 하루 5개(08:07·12:37·16:37·19:37·22:07), 실제 공공기관 공고   id: jobapp-real-MMDD-N
 
 gzclab은 원래 '직접 만든 웹/앱 홍보' 계정이다. 다만 팔로워 1,300명은 로또 글로 모였고, 주제가 다른
 한글폭탄 글은 조회 중간값 152(번호 글 1,044)였다. 그래서 시리즈 첫 글은 "복권명당 만든 사람이"로
@@ -22,6 +23,7 @@ auto_reply 대상이 아니다("구 이름 남겨줘"를 쓰지 않는다). 댓�
 
 import datetime
 import json
+import re
 import pathlib
 import sys
 
@@ -563,15 +565,21 @@ def used_job_ids(queue):
     return {q["job_id"] for q in queue if q.get("job_id")}
 
 
-def pick_job(data, today, used=()):
-    """마감이 가장 가까운(오늘 포함) 공고 중 연봉 하한이 3천만~8천만 원인 것 하나. 정규직 먼저."""
+# 채용공고 목록에 합격자 발표·결과·취소 공지도 섞여 온다(예: "…신입직원 채용 최종합격자 발표"). 지원할 수 없는 글은 뺀다.
+NOT_OPENING = re.compile(r"합격자|발표|결과|취소|중지|연기")
+
+
+def pick_job(data, today, used=(), today_orgs=(), today_sidos=()):
+    """마감이 가장 가까운(오늘 포함) 공고 중 연봉 하한이 3천만~8천만 원인 것 하나.
+    하루 5개라 같은 날엔 같은 기관을 다시 안 쓰고, 오늘 아직 안 나온 지역·정규직을 먼저 고른다."""
     cands = [j for j in data.get("items", [])
              if j.get("incomeBound") == "min" and j.get("incomeWon") and 30000000 <= j["incomeWon"] <= 80000000
              and "억" not in (j.get("income") or "") and j.get("end", "") >= today.isoformat()
-             and j.get("url") and j.get("id") not in used]
+             and j.get("url") and j.get("id") not in used and j.get("org") not in today_orgs
+             and not NOT_OPENING.search(j.get("title") or "")]
     if not cands:
         return None
-    cands.sort(key=lambda j: (j["end"], j.get("emp") != "regular", j.get("id")))
+    cands.sort(key=lambda j: (j["end"], j.get("sido") in today_sidos, j.get("emp") != "regular", j.get("id")))
     return cands[0]
 
 
@@ -592,17 +600,22 @@ def real_post(job, data, today, idx=0):
     hc = monthly / (MONTH_HOURS + COMMUTE_HOURS)
     gap = h - MIN_WAGE
     vs = f"올해 최저시급 10,320원보다 {_won(gap)}원 높음." if gap >= 0 else f"올해 최저시급 10,320원보다 {_won(-gap)}원 낮게 나옴(연봉 하한 기준)."
+    place = data.get("regions", {}).get(job.get("sido"), "")
     hooks = [
         f"{when} 마감인 공공기관 공고 하나 가져옴.",
         "공고에 적힌 연봉 말고, 시간당 얼마인지 계산해본 적 있음?",
         "공기업 공고엔 연봉이 '얼마 이상'으로만 적혀 있음. 그래서 직접 쪼개봄.",
+        f"{place} 사는 사람, 이 공고 봤음?" if place else "이 공고 본 사람 있음?",
+        "출퇴근 왕복 1시간이면 이 연봉, 시급으로 얼마일까.",
     ]
     asks = [
         "너라면 이 공고, 집에서 몇 분 거리까지면 지원함?",
         "연봉 볼 때 시급으로도 바꿔서 봄?",
         "통근 왕복 1시간, 너는 감수할 수 있음?",
+        "이 조건이면 지원함, 넘김?",
+        "공공기관 연봉, 생각보다 높음 아니면 낮음?",
     ]
-    i = idx % 3
+    i = idx % len(hooks)
     return (f"{hooks[i]}\n\n"
             f"{(region + ' ') if region else ''}{job['org']}\n{title}\n{job.get('jobType') or ''}, 연봉 {job['income']}, {when} 마감\n\n"
             f"연봉을 12로 나누면 최소 월 {monthly / 10000:.0f}만 원.\n"
@@ -615,6 +628,26 @@ def real_post(job, data, today, idx=0):
 
 def real_link_text(job):
     return f"원문 공고\n{job['url']}\n\n직장비교 받기 (구글 플레이)\n{JOBAPP}"
+
+
+# 11/28부터 직장비교는 하루 5개, 전부 실제 공공기관 공고 글(2026-11-23 유저: "직장비교앱을 살려보자… 매일 5개로").
+# 로또 글 자리(07·09·14·18시)와 다른 시리즈 자리를 피해 출퇴근·점심·저녁에 둔다. 끝나는 날은 정하지 않았다.
+# 공고를 못 가져오면 그 자리는 기능 소개 글(아래 JOBAPP_POSTS의 기능 글)을 돌려 쓴다.
+JOBREAL_FROM = D(2026, 11, 28)
+JOBREAL_TIMES = ((8, 7), (12, 37), (16, 37), (19, 37), (22, 7))
+
+
+def jobreal_due(local, done):
+    if local.date() < JOBREAL_FROM:
+        return None
+    for n, (h, m) in enumerate(JOBREAL_TIMES, 1):
+        start = local.replace(hour=h, minute=m, second=0, microsecond=0)
+        key = f"real-{local:%m%d}-{n}"
+        if start <= local < start + datetime.timedelta(minutes=LATE_MIN) and f"jobapp-{key}" not in done:
+            feats = [x for x in JOBAPP_POSTS if not x.get("real")]
+            fb = feats[(local.toordinal() * 5 + n) % len(feats)]
+            return "jobapp", {"key": key, "date": local.date(), "real": True, "text": fb["text"]}
+    return None
 
 
 POSTS = {"hjone": HJONE_POSTS, "kstock": KSTOCK_POSTS, "golmok": GOLMOK_POSTS, "jobapp": JOBAPP_POSTS}
@@ -650,6 +683,11 @@ def due(now, queue):
     local = kst(now)
     done = {q["id"] for q in queue}
     for series, s in SERIES.items():
+        if series == "jobapp" and local.date() >= JOBREAL_FROM:
+            hit = jobreal_due(local, done)
+            if hit:
+                return hit
+            continue
         start = local.replace(hour=s["time"][0], minute=s["time"][1], second=0, microsecond=0)
         if not start <= local < start + datetime.timedelta(minutes=LATE_MIN):
             continue
@@ -672,9 +710,12 @@ def run_auto(now, dry=False):
         try:
             data = fetch_jobs()
             today = kst(now).date()
-            job = pick_job(data, today, used_job_ids(queue))
+            todays = [q for q in queue if q.get("job_id") and q.get("published_at")
+                      and kst(datetime.datetime.fromisoformat(q["published_at"])).date() == today]
+            job = pick_job(data, today, used_job_ids(queue),
+                           {q.get("job_org") for q in todays}, {q.get("job_sido") for q in todays})
             if job:
-                idx = sum(1 for x in POSTS[series] if x.get("real") and x["date"] < p["date"])
+                idx = sum(1 for q in queue if q.get("job_id"))
                 text, link = real_post(job, data, today, idx), real_link_text(job)
         except Exception as e:
             publish.telegram(f"⚠️ 직장비교 실제 공고 못 가져옴 — 기능 소개 글로 대신 ({p['key']})\n{e}")
@@ -693,7 +734,7 @@ def run_auto(now, dry=False):
         publish.telegram(f"⚠️ {name} 링크 댓글 실패 ({p['key']})\n{e}")
     queue = json.loads(QUEUE.read_text(encoding="utf-8"))
     queue.append({"id": f"{series}-{p['key']}", "status": "published", "slot": series, "text": text,
-                  "post_id": pid, **({"job_id": job["id"]} if job else {}),
+                  "post_id": pid, **({"job_id": job["id"], "job_org": job.get("org"), "job_sido": job.get("sido")} if job else {}),
                   "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")})
     QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     publish.telegram(f"📣 {name} 홍보 글 발행됨 ({p['key']})")

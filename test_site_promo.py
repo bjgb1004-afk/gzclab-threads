@@ -55,7 +55,8 @@ def test_times_and_once_per_day():
 
 def test_missed_day_is_not_backfilled():
     assert sp.due(at(25, 20, 10), [])[1]["key"] == "13f"
-    assert sp.due(datetime.datetime(2026, 12, 7, 20, 10, tzinfo=KST), []) is None
+    hit = sp.due(datetime.datetime(2026, 12, 7, 20, 10, tzinfo=KST), [])
+    assert hit is None or hit[0] == "jobapp"   # 직장비교 실제 공고 글은 끝나는 날이 없다
 
 
 def test_gap_after_another_post(tmp_path, monkeypatch):
@@ -79,7 +80,7 @@ def test_gap_after_another_post(tmp_path, monkeypatch):
     ids = [q["id"] for q in json.loads(qf.read_text(encoding="utf-8"))]
     assert ids[-1] == "golmok-gyeongdo-bots"
     sp.run_auto(now + datetime.timedelta(minutes=40))
-    assert len(sent) == 1  # 같은 날 두 번 안 나감
+    assert sum("경찰과 도둑" in t for t in sent) == 1  # 같은 시리즈가 같은 날 두 번 안 나감
 
 
 def test_not_auto_reply_targets():
@@ -147,3 +148,33 @@ def test_real_day_falls_back_to_feature_post(monkeypatch, tmp_path):
         raise RuntimeError("down")
     out, q = _run(monkeypatch, tmp_path, at(25, 22, 7), boom)
     assert out["post"][0].startswith("일급 100,620원") and "job_id" not in q[-1] and out["tg"]
+
+
+def test_jobreal_five_a_day_from_nov28():
+    assert sp.due(at(27, 22, 7), [{"id": "kstock-kr5pct"}, {"id": "golmok-gyeongdo"}])[1]["key"] == "filter"  # 11/27까지는 예전 방식
+    hits = []
+    q = [{"id": f"{k}-{p['key']}"} for k in ("hjone", "kstock", "golmok")
+         for p in sp.POSTS[k] if p["date"] == datetime.date(2026, 11, 28)]
+    for h, m in sp.JOBREAL_TIMES:
+        s, p = sp.due(at(28, h, m), q)
+        assert s == "jobapp" and p["real"] and p["text"]
+        hits.append(p["key"]); q.append({"id": f"jobapp-{p['key']}"})
+    assert hits == [f"real-1128-{n}" for n in range(1, 6)]
+    assert sp.due(at(28, 8, 6), []) is None or sp.due(at(28, 8, 6), [])[0] != "jobapp"
+
+
+def test_pick_job_avoids_same_org_and_prefers_new_region_today():
+    today = datetime.date(2026, 11, 25)
+    assert sp.pick_job(JOBS, today, today_orgs={"성동문화재단"})["id"] == "2"
+    assert sp.pick_job(JOBS, today, today_sidos={"007001"})["id"] == "2"
+
+
+def test_five_templates_differ():
+    today = datetime.date(2026, 11, 25)
+    firsts = {sp.real_post(JOBS["items"][0], JOBS, today, i).splitlines()[0] for i in range(5)}
+    assert len(firsts) == 5
+
+
+def test_skips_result_announcements():
+    data = {"regions": {}, "items": [dict(JOBS["items"][0], id="9", title="신입직원 채용 최종합격자 발표")]}
+    assert sp.pick_job(data, datetime.date(2026, 11, 25)) is None
