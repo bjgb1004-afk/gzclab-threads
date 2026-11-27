@@ -29,7 +29,7 @@ STORE = ("https://play.google.com/store/apps/details?id=kr.gzclab.hangulbomb"
 LEAD = "구글 플레이에서 '한글폭탄' 검색해도 나옴:"
 LIMIT = 500
 D = datetime.date
-TAG = "\n\n#한글게임"
+TAG = ""   # 주제 태그 안 붙임(2026-11-27 유저 요청). 전에는 "\n\n#한글게임"
 POSTS = [
     # 이미 나간 글(기록용). due_post는 날짜가 지나 다시 고르지 않는다.
     {"date": D(2026, 11, 3), "key": "launch", "text": None, "done": True},

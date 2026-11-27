@@ -36,11 +36,11 @@ def test_schedule_is_daily_1907_for_30_days():
     assert hp.due_post(at(11, 3, 19, 7), []) is None          # 이미 나간 날은 다시 안 고른다
 
 
-def test_one_topic_tag_per_post():
+def test_no_topic_tag():
     for p in hp.POSTS:
         t = hp.body(p)
         if t:
-            assert t.count("#") == 1 and t.endswith("#한글게임")
+            assert "#한글게임" not in t
 
 
 def test_no_pm_or_night_slot_after_chatter_stopped():
