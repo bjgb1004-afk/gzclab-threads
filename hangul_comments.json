@@ -1,5 +1,5 @@
 {
-  "_collected": "2026-11-28",
+  "_collected": "2026-11-29",
   "hangul-launch": [],
   "hangul-core": [],
   "hangul-d01-charge": [],
@@ -23,5 +23,12 @@
   "hangul-d17-three": [],
   "hangul-d18-score": [],
   "hangul-d19-origin": [],
-  "hangul-fb3": []
+  "hangul-fb3": [],
+  "hangul-d20-bomb": [
+    "폭폭폭 기차가 어둠을 해치고 은하수를 거쳐서~",
+    "폭삭,폭신",
+    "폭염",
+    "폭동.폭파.폭삭.폭망",
+    "폭주, 폭죽, 폭발..."
+  ]
 }
