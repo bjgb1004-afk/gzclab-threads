@@ -6029,7 +6029,14 @@
     "job_id": "81183",
     "job_org": "인천광역시서해구시설공단",
     "job_sido": "007004",
-    "published_at": "2026-11-27T13:11:08+00:00"
+    "published_at": "2026-11-27T13:11:08+00:00",
+    "insights": {
+      "views": 173,
+      "likes": 3,
+      "replies": 1,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "hjone-invoice",
