@@ -5965,7 +5965,14 @@
     "reply_mode": "replay",
     "post_id": "18104883014552564",
     "date": "2026-11-27",
-    "published_at": "2026-11-27T05:10:56+00:00"
+    "published_at": "2026-11-27T05:10:56+00:00",
+    "insights": {
+      "views": 478,
+      "likes": 2,
+      "replies": 3,
+      "reposts": 0,
+      "quotes": 0
+    }
   },
   {
     "id": "hangul-fb3",
