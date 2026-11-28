@@ -31,7 +31,7 @@ def test_hjone_at_dawn_from_nov25():
     assert sp.due(at(25, 5, 6), []) is None
     s, p = sp.due(at(25, 5, 7), [])
     assert (s, p["key"]) == ("hjone", "intro")
-    assert sp.link_text(s, p).endswith("utm_campaign%3Dpromo")
+    assert sp.link_text(s, p).endswith("id=com.gzc.hyeonjangone")
 
 
 def test_times_and_once_per_day():
@@ -121,7 +121,8 @@ def test_real_post_numbers_and_honest_assumptions():
     assert "주 40시간(월 209시간)으로 잡으면" in t and "http" not in t and len(t) <= sp.LIMIT
     t2 = sp.real_post(JOBS["items"][1], JOBS, today, 1)
     assert "인천광역시 인천광역시" not in t2
-    assert sp.real_link_text(JOBS["items"][0]).startswith("원문 공고\nhttps://job.cleaneye.go.kr/a?idx=1")
+    lt = sp.real_link_text(JOBS["items"][0])
+    assert lt.count("http") == 1 and "%" not in lt and "&" not in lt
 
 
 def _run(monkeypatch, tmp_path, now, fetch):
@@ -139,7 +140,7 @@ def _run(monkeypatch, tmp_path, now, fetch):
 
 def test_real_day_uses_public_job_and_records_it(monkeypatch, tmp_path):
     out, q = _run(monkeypatch, tmp_path, at(25, 22, 7), lambda: JOBS)
-    assert "성동문화재단" in out["post"][0] and out["reply"][0].startswith("원문 공고")
+    assert "성동문화재단" in out["post"][0] and out["reply"][0].startswith("직장비교 받기")
     assert q[-1]["id"] == "jobapp-convert" and q[-1]["job_id"] == "1"
 
 

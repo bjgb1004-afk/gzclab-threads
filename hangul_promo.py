@@ -24,8 +24,7 @@ HERE = pathlib.Path(__file__).parent
 QUEUE = HERE / "queue.json"
 COMMENTS = HERE / "hangul_comments.json"
 POST_TIME = (19, 7)   # 2026-11-03 유저 요청: 매일 저녁 7시. :07은 정각 혼잡 회피
-STORE = ("https://play.google.com/store/apps/details?id=kr.gzclab.hangulbomb"
-         "&referrer=utm_source%3Dthreads%26utm_medium%3Dsocial%26utm_campaign%3Ddevlog")
+STORE = "https://play.google.com/store/apps/details?id=kr.gzclab.hangulbomb"  # referrer 꼬리 뺌(2026-11-28: 스레드에서 잘려 보임)
 LEAD = "구글 플레이에서 '한글폭탄' 검색해도 나옴:"
 LIMIT = 500
 D = datetime.date

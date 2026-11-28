@@ -40,10 +40,10 @@ D = datetime.date
 
 KSTOCK = "https://k-stockreplay.pe.kr"
 GOLMOK = "https://golmok-play.gzclab.workers.dev"
-HJONE = ("https://play.google.com/store/apps/details?id=com.gzc.hyeonjangone"
-         "&referrer=utm_source%3Dthreads%26utm_medium%3Dsocial%26utm_campaign%3Dpromo")
-JOBAPP = ("https://play.google.com/store/apps/details?id=io.github.bjgb1004_afk.jobscore"
-          "&referrer=utm_source%3Dthreads%26utm_medium%3Dsocial%26utm_campaign%3Dpromo")
+# 플레이 링크는 referrer 꼬리 없이 짧게(2026-11-28 유저: 댓글 링크가 잘려 보임). %·& 섞인 긴 주소는
+# 스레드에서 중간에 끊겨 보이거나 눌리는 범위가 잘린다.
+HJONE = "https://play.google.com/store/apps/details?id=com.gzc.hyeonjangone"
+JOBAPP = "https://play.google.com/store/apps/details?id=io.github.bjgb1004_afk.jobscore"
 
 SERIES = {
     "hjone": {"time": (5, 7), "name": "현장원", "lead": "현장사업자 ONE 받기 (구글 플레이)", "link": HJONE},
@@ -627,7 +627,8 @@ def real_post(job, data, today, idx=0):
 
 
 def real_link_text(job):
-    return f"원문 공고\n{job['url']}\n\n직장비교 받기 (구글 플레이)\n{JOBAPP}"
+    """첫 댓글엔 링크 하나만(2026-11-28: 링크 두 개를 넣었더니 잘려 보였다). 원문은 앱 '공고 찾기'에 원문 링크가 있다."""
+    return f"직장비교 받기 (구글 플레이)\n{JOBAPP}\n\n이 공고 원문은 앱 '공고 찾기'에서 바로 열 수 있음"
 
 
 # 11/28부터 직장비교는 하루 5개, 전부 실제 공공기관 공고 글(2026-11-23 유저: "직장비교앱을 살려보자… 매일 5개로").
